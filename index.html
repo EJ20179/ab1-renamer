@@ -559,6 +559,7 @@
       <button class="gp-nav-btn" onclick="gpNav(this,'s4')">Excel 가져오기</button>
       <button class="gp-nav-btn" onclick="gpNav(this,'s5')">짝꿍 프라이머</button>
       <button class="gp-nav-btn" onclick="gpNav(this,'s_po')">Primer 단독 모드</button>
+      <button class="gp-nav-btn" onclick="gpNav(this,'s_backup')">규칙 백업/복원</button>
       <button class="gp-nav-btn" onclick="gpNav(this,'s6')">문제해결 FAQ</button>
     </div>
   </nav>
@@ -653,7 +654,7 @@
         <div><div class="gp-card-title">ITEM 규칙 설정하기 <span style="font-size:0.78rem;font-weight:600;color:#9ca3af;margin-left:6px">처음 한 번만</span></div><div class="gp-card-sub">유전자별 Product × Primer → Prefix 매핑 테이블을 등록합니다</div></div>
       </div>
       <div class="gp-card-bd">
-        <div class="gp-note"><span class="tip-icon">&#128161;</span><div>규칙을 한 번 설정하면 <strong>브라우저에 자동 저장</strong>됩니다. 같은 컴퓨터에서 다시 열어도 규칙이 그대로 남아 있습니다. (브라우저 캐시 삭제 시 초기화)</div></div>
+        <div class="gp-note"><span class="tip-icon">&#128161;</span><div>규칙을 한 번 설정하면 <strong>브라우저에 자동 저장</strong>됩니다. 같은 컴퓨터에서 다시 열어도 규칙이 그대로 남아 있습니다. (브라우저 캐시 삭제 시 초기화)<br>규칙 설정 완료 후 <strong>↓ 규칙 내보내기</strong>로 JSON 파일을 백업해두면, 컴퓨터가 바뀌거나 캐시가 초기화되어도 바로 복원할 수 있습니다.</div></div>
 
         <p><strong>ITEM 규칙이란?</strong><br>
         특정 유전자(ITEM)에 대해, 어떤 조합이 어떤 접두어(ex1, ex2…)에 해당하는지를 정의한 표입니다. 유전자 유형에 따라 두 가지 모드 중 하나를 선택합니다.</p>
@@ -966,6 +967,107 @@
       </div>
     </div>
 
+    <!-- S_BACKUP: 규칙 백업/복원 -->
+    <div class="gp-card" id="s_backup">
+      <div class="gp-card-hd">
+        <div class="gp-card-num">7</div>
+        <div><div class="gp-card-title">규칙 백업 &amp; 복원</div><div class="gp-card-sub">규칙을 JSON 파일로 저장하고, 언제든 다시 불러옵니다</div></div>
+      </div>
+      <div class="gp-card-bd">
+
+        <p>규칙은 브라우저의 localStorage에 저장되기 때문에 <strong>브라우저 캐시를 지우거나, 다른 컴퓨터·브라우저에서 접속하면 규칙이 사라집니다.</strong><br>
+        내보내기/가져오기 기능으로 규칙을 JSON 파일로 백업해두면 언제든 복원할 수 있습니다.</p>
+
+        <div class="gp-2col" style="margin:18px 0;">
+          <div class="gp-col-card">
+            <div class="gp-col-title" style="color:#15803d">&#8595; 규칙 내보내기</div>
+            <p style="font-size:0.83rem;color:#6b7280;line-height:1.65;margin:0">현재 저장된 모든 규칙을 <code>ab1_rules.json</code> 파일로 다운로드합니다.<br>백업·이전·공유에 사용합니다.</p>
+          </div>
+          <div class="gp-col-card">
+            <div class="gp-col-title" style="color:#1d4ed8">&#8593; 규칙 가져오기</div>
+            <p style="font-size:0.83rem;color:#6b7280;line-height:1.65;margin:0">저장해둔 JSON 파일을 선택하면 규칙을 복원합니다.<br>기존 규칙은 모두 교체됩니다.</p>
+          </div>
+        </div>
+
+        <p><strong>버튼 위치</strong><br>
+        "ITEM 변환 규칙 관리" 패널 하단 오른쪽에 있습니다.</p>
+        <div class="gp-code" style="margin:10px 0 18px;">
+          [+ ITEM 규칙 추가] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [&#8595; 규칙 내보내기] &nbsp; [&#8593; 규칙 가져오기]
+        </div>
+
+        <p><strong>언제 사용하나요?</strong></p>
+        <table class="gp-tbl">
+          <thead><tr><th>상황</th><th>방법</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>브라우저 캐시/사이트 데이터를 지운 후</td>
+              <td>미리 내보낸 JSON 파일로 <strong>가져오기</strong></td>
+            </tr>
+            <tr>
+              <td>다른 컴퓨터에서 처음 사용할 때</td>
+              <td>USB나 메일로 JSON 파일 전달 후 <strong>가져오기</strong></td>
+            </tr>
+            <tr>
+              <td>팀원과 규칙을 공유할 때</td>
+              <td>JSON 파일을 팀 공유 폴더에 보관 후 각자 <strong>가져오기</strong></td>
+            </tr>
+            <tr>
+              <td>규칙을 크게 수정하기 전 백업</td>
+              <td><strong>내보내기</strong>로 현재 상태 저장</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p style="margin-top:20px"><strong>규칙 내보내기 방법</strong></p>
+        <div class="gp-steps">
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">1</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">"ITEM 변환 규칙 관리" 패널을 펼칩니다</div>
+              <div class="gp-step-desc">패널 우측 하단에 <strong>↓ 규칙 내보내기</strong> 버튼이 있습니다.</div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">2</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">"↓ 규칙 내보내기" 버튼을 클릭합니다</div>
+              <div class="gp-step-desc"><code>ab1_rules.json</code> 파일이 자동으로 다운로드됩니다.<br>이 파일을 안전한 곳(로컬 폴더, 팀 공유 드라이브 등)에 보관해두세요.</div>
+            </div>
+          </div>
+        </div>
+
+        <p style="margin-top:16px"><strong>규칙 가져오기 방법</strong></p>
+        <div class="gp-steps">
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">1</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">"↑ 규칙 가져오기" 버튼을 클릭합니다</div>
+              <div class="gp-step-desc">파일 선택 창이 열립니다.</div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">2</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">저장해둔 <code>ab1_rules.json</code> 파일을 선택합니다</div>
+              <div class="gp-step-desc">기존 규칙이 있는 경우 교체 여부를 묻는 확인 창이 표시됩니다.</div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">3</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">"확인"을 클릭하면 규칙이 즉시 복원됩니다</div>
+              <div class="gp-step-desc">규칙 목록이 갱신되고 브라우저에 자동 저장됩니다.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gp-warn"><span class="tip-icon">&#9888;</span><div><strong>가져오기는 기존 규칙을 완전히 교체합니다.</strong><br>
+        현재 규칙을 유지하고 싶다면 가져오기 전에 먼저 <strong>↓ 내보내기</strong>로 백업하세요.</div></div>
+
+        <div class="gp-note"><span class="tip-icon">&#128161;</span><div>JSON 파일은 일반 텍스트 파일이므로 메모장으로 열어볼 수 있습니다. 내용을 직접 편집하면 다음 가져오기 때 반영됩니다 (단, 형식이 깨지면 가져오기가 실패합니다).</div></div>
+      </div>
+    </div>
+
     <!-- S6: FAQ -->
     <div class="gp-card" id="s6">
       <div class="gp-card-hd">
@@ -1000,8 +1102,16 @@
           <div class="faq-a">변환 <strong>불가</strong>로 판정된 파일은 ZIP에 포함되지 않습니다. 미리보기 표에서 "✗ 불가" 항목의 이유를 확인하고, 규칙을 보완한 뒤 파일을 다시 업로드하세요.</div>
         </div>
         <div class="faq-item">
+          <div class="faq-q">컴퓨터를 바꿨더니 규칙이 사라졌어요.</div>
+          <div class="faq-a">
+            규칙은 해당 컴퓨터의 브라우저 localStorage에만 저장됩니다. 다른 컴퓨터에서 사용하려면 기존 컴퓨터에서 <strong>↓ 규칙 내보내기</strong>로 JSON 파일을 저장한 뒤, 새 컴퓨터에서 <strong>↑ 규칙 가져오기</strong>로 불러오면 됩니다.<br>
+            자세한 내용은 <a href="#s_backup" onclick="gpNav(document.querySelectorAll('.gp-nav-btn')[7],'s_backup');return false;" style="color:#dc2626">"규칙 백업/복원" 섹션</a>을 참고하세요.
+          </div>
+        </div>
+        <div class="faq-item">
           <div class="faq-q">BRCA1 규칙을 실수로 삭제했어요.</div>
-          <div class="faq-a">브라우저 캐시나 localStorage를 지우거나, BRCA1 규칙을 삭제하면 복구할 방법이 없습니다. 하지만 이 도구에는 <strong>BRCA1 기본 규칙이 내장</strong>되어 있어, localStorage에 데이터가 전혀 없을 때 자동으로 복원됩니다. localStorage를 초기화하면 기본 규칙으로 돌아옵니다.</div>
+          <div class="faq-a">브라우저 캐시나 localStorage를 지우거나, BRCA1 규칙을 삭제하면 복구할 방법이 없습니다. 하지만 이 도구에는 <strong>BRCA1 기본 규칙이 내장</strong>되어 있어, localStorage에 데이터가 전혀 없을 때 자동으로 복원됩니다. localStorage를 초기화하면 기본 규칙으로 돌아옵니다.<br>
+          평소 <strong>↓ 규칙 내보내기</strong>로 백업을 해두면 삭제해도 복원할 수 있습니다.</div>
         </div>
         <div class="faq-item">
           <div class="faq-q">5쌍에 없는 프라이머를 사용할 때는 어떻게 하나요?</div>
