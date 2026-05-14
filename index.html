@@ -295,6 +295,10 @@
     .btn-import:hover { background: #fecaca; }
     .btn-addrow { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
     .btn-addrow:hover { background: #dcfce7; }
+    .btn-export-rules { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+    .btn-export-rules:hover { background: #dcfce7; }
+    .btn-import-rules { background: #eff6ff; color: #1d4ed8; border: 1px solid #93c5fd; }
+    .btn-import-rules:hover { background: #dbeafe; }
 
     .lt-wrap { border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden; overflow-x: auto; max-height: 260px; overflow-y: auto; }
     .ltable { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
@@ -1044,7 +1048,13 @@
           <tbody id="rulesBody"></tbody>
         </table>
       </div>
-      <button class="btn-add" onclick="openModal(null)">+ ITEM 규칙 추가</button>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:4px;">
+        <button class="btn-add" onclick="openModal(null)">+ ITEM 규칙 추가</button>
+        <div style="flex:1"></div>
+        <button class="btn-sm btn-export-rules" onclick="exportRules()">&#8595; 규칙 내보내기</button>
+        <button class="btn-sm btn-import-rules" onclick="document.getElementById('rulesImport').click()">&#8593; 규칙 가져오기</button>
+        <input type="file" id="rulesImport" accept=".json" style="display:none" onchange="importRulesFile(this)" />
+      </div>
     </div>
   </div>
 
@@ -1785,6 +1795,46 @@ function delRule(i){
   persist();
   renderRules();
   if(ab1Files.length) processFiles();
+}
+
+/* ═══════════════ Rules export / import ═══════════════ */
+function exportRules(){
+  const json=JSON.stringify(rules,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='ab1_rules.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importRulesFile(inputEl){
+  const file=inputEl.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!Array.isArray(data)) throw new Error('규칙 배열이 아닙니다.');
+      for(const r of data){
+        if(!r.item||typeof r.pos!=='number'||!Array.isArray(r.table))
+          throw new Error('항목 형식이 올바르지 않습니다.');
+      }
+      const msg=rules.length
+        ? `현재 규칙 ${rules.length}개를 지우고 파일의 규칙 ${data.length}개로 교체하시겠습니까?`
+        : `규칙 ${data.length}개를 가져오시겠습니까?`;
+      if(!confirm(msg)) return;
+      rules=data;
+      persist();
+      renderRules();
+      if(ab1Files.length) processFiles();
+      alert(`규칙 ${data.length}개를 성공적으로 가져왔습니다.`);
+    }catch(e){
+      alert('가져오기 실패: '+e.message);
+    }
+    inputEl.value='';
+  };
+  reader.readAsText(file,'utf-8');
 }
 
 /* ═══════════════ Dropzone ═══════════════ */
