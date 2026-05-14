@@ -1,0 +1,1972 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AB1 파일명 일괄 변환기</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #ffffff;
+      color: #111827;
+      padding: 20px 40px;
+      border-bottom: 3px solid #dc2626;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    }
+    header h1 { font-size: 1.3rem; font-weight: 700; color: #111827; }
+    header h1 span { color: #dc2626; }
+    header p  { font-size: 0.8rem; color: #6b7280; margin-top: 4px; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+
+    /* ── Panel ── */
+    .panel {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px #e5e7eb;
+      margin-bottom: 22px;
+      overflow: hidden;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 22px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .panel-header:hover { background: #fafafa; }
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 0.93rem;
+      color: #111827;
+    }
+    .count-badge {
+      background: #fef2f2;
+      color: #dc2626;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+    .chevron { color: #9ca3af; transition: transform 0.2s; }
+    .chevron.open { transform: rotate(180deg); }
+    .panel-body { padding: 18px 22px; }
+    .panel-body.hidden { display: none; }
+
+    /* ── Rules Table ── */
+    .tbl-wrap { border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden; overflow-x: auto; margin-bottom: 14px; }
+    .rtable { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .rtable thead { background: #f9fafb; }
+    .rtable th { padding: 10px 14px; text-align: left; font-weight: 700; color: #6b7280; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
+    .rtable td { padding: 9px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    .rtable tr:last-child td { border-bottom: none; }
+
+    .item-tag {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+    .col-tag {
+      display: inline-block;
+      background: #f3f4f6;
+      color: #374151;
+      padding: 2px 8px;
+      border-radius: 5px;
+      font-family: 'Consolas', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .rule-ex { font-family: 'Consolas', monospace; font-size: 0.78rem; color: #6b7280; white-space: nowrap; }
+    .hl { color: #b45309; font-weight: 800; background: #fef3c7; padding: 0 2px; border-radius: 3px; }
+
+    .btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.88rem; transition: background 0.15s; }
+    .btn-edit   { background: #f3f4f6; color: #374151; }
+    .btn-edit:hover   { background: #e5e7eb; }
+    .btn-delete { background: #fef2f2; color: #dc2626; }
+    .btn-delete:hover { background: #fecaca; }
+    .btn-pair {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 2px 7px; border: 1.5px dashed #f6ad55; border-radius: 5px;
+      background: #fffbeb; color: #b7791f; font-size: 0.72rem; font-weight: 700;
+      cursor: pointer; white-space: nowrap; transition: background 0.15s;
+    }
+    .btn-pair:hover { background: #fef3c7; }
+    .pair-ok { color: #16a34a; font-size: 0.78rem; font-weight: 700; }
+
+    .btn-add {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px;
+      background: #dc2626; color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 0.84rem; font-weight: 700;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-add:hover { background: #b91c1c; }
+
+    /* ── Upload Card ── */
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px #e5e7eb;
+      margin-bottom: 22px;
+    }
+    .card-title {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.93rem; font-weight: 700; color: #111827;
+      margin-bottom: 16px;
+    }
+    .step {
+      width: 26px; height: 26px;
+      background: #dc2626; color: #fff;
+      border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 800; flex-shrink: 0;
+    }
+
+    .dropzone {
+      border: 2px dashed #fecaca;
+      border-radius: 10px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      background: #fff;
+      transition: border-color 0.2s, background 0.2s;
+      user-select: none;
+    }
+    .dropzone:hover, .dropzone.over { border-color: #dc2626; background: #fef2f2; }
+    .dropzone.loaded { border-color: #16a34a; background: #f0fdf4; border-style: solid; }
+    .dz-icon { font-size: 2rem; margin-bottom: 8px; }
+    .dz-hint { color: #6b7280; font-size: 0.82rem; line-height: 1.6; }
+    .dz-info { margin-top: 10px; font-size: 0.82rem; font-weight: 700; color: #16a34a; }
+    input[type="file"] { display: none; }
+
+    /* ── Stats / Warn ── */
+    .stats-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .chip { padding: 5px 13px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+    .chip-total   { background: #f3f4f6; color: #374151; }
+    .chip-found   { background: #f0fdf4; color: #15803d; }
+    .chip-missing { background: #fef2f2; color: #dc2626; }
+    .warn-box { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 14px; font-size: 0.8rem; color: #92400e; margin-bottom: 14px; line-height: 1.6; }
+
+    /* ── Preview Table ── */
+    .ptable-wrap { border-radius: 10px; border: 1px solid #e5e7eb; overflow: hidden; overflow-x: auto; }
+    .ptable { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .ptable thead { background: #f9fafb; }
+    .ptable th { padding: 11px 14px; text-align: left; font-weight: 700; color: #6b7280; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
+    .ptable td { padding: 9px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    .ptable tr:last-child td { border-bottom: none; }
+    .ptable tr:hover td { background: #f9fafb; }
+    .mono { font-family: 'Consolas', monospace; font-size: 0.78rem; }
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+    .badge-ok      { background: #f0fdf4; color: #15803d; }
+    .badge-norule  { background: #fef2f2; color: #dc2626; }
+
+    /* ── Action Bar ── */
+    .action-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 18px 24px; background: #fff; border-radius: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px #e5e7eb;
+      gap: 16px; flex-wrap: wrap;
+    }
+    .action-info { font-size: 0.85rem; color: #6b7280; }
+    .action-info strong { color: #111827; }
+    .btn-dl {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 28px;
+      background: linear-gradient(135deg, #b91c1c, #dc2626);
+      color: #fff; font-size: 0.92rem; font-weight: 700;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      box-shadow: 0 3px 10px rgba(220,38,38,0.3);
+    }
+    .btn-dl:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+    .btn-dl:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+
+    /* ── Notice ── */
+    .notice {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: #fff; border: 1.5px dashed #fecaca;
+      border-radius: 12px; padding: 16px 20px;
+      margin-bottom: 22px; font-size: 0.84rem; color: #991b1b;
+    }
+    .notice .ni { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Modal ── */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: none; }
+    .overlay.show { display: block; }
+
+    .modal {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(680px, 96vw);
+      max-height: 90vh;
+      background: #fff; border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+      z-index: 101; display: none; overflow: hidden;
+      flex-direction: column;
+    }
+    .modal.show { display: flex; }
+
+    .modal-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 24px; background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 1rem; font-weight: 700; color: #111827;
+      flex-shrink: 0;
+    }
+    .modal-close {
+      width: 28px; height: 28px; background: #e5e7eb;
+      border: none; border-radius: 6px; cursor: pointer;
+      font-size: 0.85rem; display: flex; align-items: center; justify-content: center;
+    }
+    .modal-close:hover { background: #d1d5db; }
+
+    .modal-bd {
+      padding: 20px 24px;
+      overflow-y: auto;
+      display: flex; flex-direction: column; gap: 18px;
+      flex: 1;
+    }
+
+    .modal-ft {
+      display: flex; justify-content: flex-end; gap: 10px;
+      padding: 14px 24px; border-top: 1px solid #e5e7eb;
+      background: #f9fafb; flex-shrink: 0;
+    }
+
+    /* ── Form elements ── */
+    .fg { display: flex; flex-direction: column; gap: 6px; }
+    .fg label { font-size: 0.82rem; font-weight: 700; color: #374151; }
+    .fg .hint { font-size: 0.74rem; color: #9ca3af; }
+    .fg input[type="text"], .fg select {
+      padding: 9px 12px; border: 1.5px solid #e5e7eb; border-radius: 8px;
+      font-size: 0.85rem; color: #111827; outline: none; width: 100%;
+      transition: border-color 0.15s;
+    }
+    .fg input:focus, .fg select:focus { border-color: #dc2626; }
+    .req { color: #dc2626; }
+    .err { font-size: 0.77rem; color: #dc2626; display: none; margin-top: 3px; }
+    .err.show { display: block; }
+
+    .insert-row {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.84rem; color: #374151; flex-wrap: wrap;
+    }
+    .insert-row input[type="number"] {
+      width: 60px; padding: 7px 10px; text-align: center;
+      border: 1.5px solid #e5e7eb; border-radius: 8px;
+      font-size: 0.9rem; font-weight: 700; outline: none;
+    }
+    .insert-row input:focus { border-color: #dc2626; }
+    .insert-row code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 0.82rem; }
+
+    /* ── Lookup Table in modal ── */
+    .lt-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px; flex-wrap: wrap; gap: 8px;
+    }
+    .lt-title { font-size: 0.82rem; font-weight: 700; color: #374151; }
+    .lt-actions { display: flex; gap: 8px; align-items: center; }
+
+    .btn-sm {
+      padding: 6px 13px; border-radius: 7px;
+      font-size: 0.78rem; font-weight: 700; cursor: pointer; border: none;
+      transition: background 0.15s;
+    }
+    .btn-import { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .btn-import:hover { background: #fecaca; }
+    .btn-addrow { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+    .btn-addrow:hover { background: #dcfce7; }
+
+    .lt-wrap { border-radius: 8px; border: 1px solid #e5e7eb; overflow: hidden; overflow-x: auto; max-height: 260px; overflow-y: auto; }
+    .ltable { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .ltable thead { background: #f9fafb; position: sticky; top: 0; }
+    .ltable th { padding: 8px 12px; text-align: left; font-weight: 700; color: #6b7280; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
+    .ltable td { padding: 5px 8px; border-bottom: 1px solid #f3f4f6; }
+    .ltable tr:last-child td { border-bottom: none; }
+    .ltable input, .ltable select {
+      width: 100%; padding: 5px 8px;
+      border: 1.5px solid transparent; border-radius: 5px;
+      font-size: 0.8rem; font-family: 'Consolas', monospace;
+      background: transparent; outline: none; color: #111827;
+    }
+    .ltable input:focus, .ltable select:focus { border-color: #fca5a5; background: #fff; }
+    .ltable select { cursor: pointer; appearance: auto; }
+    .primer-cell { display: flex; flex-direction: column; gap: 2px; }
+    .lt-empty { text-align: center; padding: 24px; color: #9ca3af; font-size: 0.82rem; }
+
+    .btn-cancel { padding: 9px 22px; background: #fff; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #374151; cursor: pointer; }
+    .btn-cancel:hover { background: #f3f4f6; }
+    .btn-save { padding: 9px 22px; background: #dc2626; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 700; color: #fff; cursor: pointer; }
+    .btn-save:hover { background: #b91c1c; }
+
+    .preview-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 16px; }
+    .preview-lbl { font-size: 0.72rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .preview-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; font-size: 0.79rem; }
+    .preview-row:last-child { margin-bottom: 0; }
+    .pl { font-size: 0.7rem; font-weight: 700; color: #9ca3af; width: 28px; flex-shrink: 0; }
+    .preview-row code { font-family: 'Consolas', monospace; font-size: 0.79rem; color: #111827; word-break: break-all; }
+
+    /* ── Header layout ── */
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .header-text h1 { font-size: 1.3rem; font-weight: 700; color: #111827; }
+    .header-text h1 span { color: #dc2626; }
+    .header-text p  { font-size: 0.8rem; color: #6b7280; margin-top: 4px; }
+    .btn-guide {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 8px 18px;
+      background: #fff; color: #dc2626;
+      border: 1.5px solid #fecaca; border-radius: 8px;
+      font-size: 0.83rem; font-weight: 700; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-guide:hover { background: #fef2f2; border-color: #dc2626; }
+
+    /* ── Guide Full Page ── */
+    #guidePage { display: none; background: #f3f4f6; min-height: calc(100vh - 67px); }
+
+    .gp-hero {
+      background: linear-gradient(135deg, #fff 0%, #fef2f2 100%);
+      border-bottom: 1px solid #fecaca;
+      padding: 48px 40px 40px;
+      text-align: center;
+    }
+    .gp-hero h2 { font-size: 1.7rem; font-weight: 800; color: #111827; margin-bottom: 10px; }
+    .gp-hero h2 em { color: #dc2626; font-style: normal; }
+    .gp-hero p { font-size: 0.92rem; color: #6b7280; max-width: 540px; margin: 0 auto 24px; line-height: 1.7; }
+    .gp-hero-chips { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .gp-chip { background: #fff; border: 1.5px solid #fecaca; border-radius: 999px; padding: 5px 16px; font-size: 0.8rem; font-weight: 700; color: #dc2626; }
+
+    .gp-nav { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
+    .gp-nav-inner { max-width: 900px; margin: 0 auto; padding: 0 20px; display: flex; gap: 2px; overflow-x: auto; }
+    .gp-nav-btn {
+      padding: 14px 18px; border: none; background: none; cursor: pointer;
+      font-size: 0.82rem; font-weight: 600; color: #6b7280; white-space: nowrap;
+      border-bottom: 2.5px solid transparent; transition: color 0.15s, border-color 0.15s;
+    }
+    .gp-nav-btn:hover { color: #dc2626; }
+    .gp-nav-btn.active { color: #dc2626; border-bottom-color: #dc2626; }
+
+    .gp-container { max-width: 900px; margin: 0 auto; padding: 36px 20px 80px; }
+
+    .gp-card {
+      background: #fff; border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px #e5e7eb;
+      margin-bottom: 28px; overflow: hidden;
+    }
+    .gp-card-hd {
+      display: flex; align-items: center; gap: 14px;
+      padding: 20px 26px; border-bottom: 1px solid #f3f4f6;
+      background: #fafafa;
+    }
+    .gp-card-num {
+      width: 32px; height: 32px; background: #dc2626; color: #fff;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 0.82rem; font-weight: 800; flex-shrink: 0;
+    }
+    .gp-card-num.icon { background: #fef2f2; color: #dc2626; font-size: 1rem; }
+    .gp-card-title { font-size: 1.05rem; font-weight: 700; color: #111827; }
+    .gp-card-sub { font-size: 0.8rem; color: #9ca3af; margin-top: 2px; }
+    .gp-card-bd { padding: 24px 26px; font-size: 0.86rem; color: #374151; line-height: 1.8; }
+    .gp-card-bd p { margin-bottom: 12px; }
+    .gp-card-bd p:last-child { margin-bottom: 0; }
+    .gp-card-bd strong { color: #111827; font-weight: 700; }
+
+    /* filename anatomy */
+    .fn-anatomy { margin: 20px 0; }
+    .fn-parts {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 0;
+      background: #f9fafb; border: 1.5px solid #e5e7eb; border-radius: 10px;
+      padding: 14px 18px; font-family: 'Consolas', monospace; font-size: 0.9rem;
+      font-weight: 700; justify-content: center;
+    }
+    .fn-p { padding: 4px 10px; border-radius: 6px; margin: 2px; }
+    .fn-p1 { background: #fef2f2; color: #dc2626; }
+    .fn-p2 { background: #f0fdf4; color: #15803d; }
+    .fn-p3 { background: #eff6ff; color: #1d4ed8; }
+    .fn-p4 { background: #fefce8; color: #a16207; }
+    .fn-p5 { background: #faf5ff; color: #7e22ce; }
+    .fn-sep { color: #9ca3af; font-weight: 400; }
+    .fn-ext { color: #9ca3af; font-size: 0.82rem; }
+    .fn-labels {
+      display: flex; justify-content: center; flex-wrap: wrap;
+      gap: 8px; margin-top: 14px;
+    }
+    .fn-lbl { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; font-weight: 600; }
+    .fn-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* transform arrow */
+    .fn-transform { display: flex; align-items: center; gap: 14px; margin: 14px 0; flex-wrap: wrap; }
+    .fn-before, .fn-after {
+      flex: 1; min-width: 200px;
+      background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
+      padding: 10px 14px; font-family: 'Consolas', monospace; font-size: 0.8rem;
+      color: #374151; line-height: 1.6;
+    }
+    .fn-after { border-color: #fecaca; background: #fef2f2; }
+    .fn-arrow { color: #dc2626; font-size: 1.4rem; font-weight: 700; flex-shrink: 0; }
+    .fn-label-sm { font-size: 0.7rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .fn-inserted { color: #dc2626; font-weight: 800; background: #fecaca; padding: 0 2px; border-radius: 3px; }
+
+    /* steps */
+    .gp-steps { display: flex; flex-direction: column; gap: 0; margin: 16px 0; }
+    .gp-step { display: flex; gap: 16px; position: relative; padding-bottom: 20px; }
+    .gp-step:last-child { padding-bottom: 0; }
+    .gp-step-left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+    .gp-step-circle {
+      width: 32px; height: 32px; background: #dc2626; color: #fff;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem; font-weight: 800; flex-shrink: 0; z-index: 1;
+    }
+    .gp-step-line { flex: 1; width: 2px; background: #fecaca; margin-top: 4px; }
+    .gp-step:last-child .gp-step-line { display: none; }
+    .gp-step-content { padding-top: 5px; flex: 1; }
+    .gp-step-title { font-size: 0.9rem; font-weight: 700; color: #111827; margin-bottom: 4px; }
+    .gp-step-desc { font-size: 0.84rem; color: #6b7280; line-height: 1.65; }
+    .gp-step-desc strong { color: #374151; }
+
+    /* tip / note boxes */
+    .gp-tip {
+      display: flex; gap: 10px;
+      background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px;
+      padding: 12px 14px; margin: 14px 0; font-size: 0.83rem; color: #7f1d1d; line-height: 1.65;
+    }
+    .gp-tip .tip-icon { flex-shrink: 0; font-size: 1rem; margin-top: 1px; }
+    .gp-note {
+      display: flex; gap: 10px;
+      background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px;
+      padding: 12px 14px; margin: 14px 0; font-size: 0.83rem; color: #14532d; line-height: 1.65;
+    }
+    .gp-note .tip-icon { flex-shrink: 0; font-size: 1rem; margin-top: 1px; }
+    .gp-warn {
+      display: flex; gap: 10px;
+      background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px;
+      padding: 12px 14px; margin: 14px 0; font-size: 0.83rem; color: #78350f; line-height: 1.65;
+    }
+    .gp-warn .tip-icon { flex-shrink: 0; font-size: 1rem; margin-top: 1px; }
+
+    /* code block */
+    .gp-code {
+      background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
+      padding: 12px 16px; margin: 12px 0;
+      font-family: 'Consolas', monospace; font-size: 0.82rem; color: #374151; line-height: 1.8;
+    }
+    .gp-code .cr { color: #dc2626; font-weight: 700; }
+    .gp-code .cg { color: #15803d; font-weight: 700; }
+    .gp-code .cb { color: #1d4ed8; font-weight: 700; }
+    .gp-code .cm { color: #9ca3af; }
+
+    /* table */
+    .gp-tbl { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin: 12px 0; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb; }
+    .gp-tbl thead { background: #f9fafb; }
+    .gp-tbl th { padding: 10px 14px; text-align: left; font-weight: 700; color: #6b7280; border-bottom: 2px solid #e5e7eb; }
+    .gp-tbl td { padding: 9px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: top; color: #374151; }
+    .gp-tbl tr:last-child td { border-bottom: none; }
+    .gp-tbl code { background: #f3f4f6; padding: 1px 6px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.8rem; }
+
+    /* primer pair grid */
+    .pair-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin: 14px 0; }
+    .pair-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; text-align: center; font-size: 0.82rem; }
+    .pair-card .pf { font-family: 'Consolas', monospace; font-weight: 700; color: #111827; }
+    .pair-card .pa { color: #9ca3af; font-size: 0.72rem; margin: 3px 0; }
+    .pair-card .pr { font-family: 'Consolas', monospace; font-weight: 700; color: #dc2626; }
+
+    /* faq */
+    .faq-item { border-bottom: 1px solid #f3f4f6; padding: 16px 0; }
+    .faq-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .faq-q { font-weight: 700; color: #111827; font-size: 0.9rem; margin-bottom: 7px; display: flex; gap: 8px; }
+    .faq-q::before { content: "Q."; color: #dc2626; font-weight: 800; flex-shrink: 0; }
+    .faq-a { font-size: 0.84rem; color: #6b7280; line-height: 1.7; padding-left: 24px; }
+    .faq-a strong { color: #374151; }
+
+    /* two-col layout */
+    .gp-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+    @media (max-width: 600px) { .gp-2col { grid-template-columns: 1fr; } }
+    .gp-col-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 16px; }
+    .gp-col-title { font-size: 0.8rem; font-weight: 700; color: #374151; margin-bottom: 8px; }
+
+    /* ── Mode Toggle ── */
+    .mode-toggle { display: flex; gap: 0; border: 1.5px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+    .mode-opt { flex: 1; }
+    .mode-opt input[type="radio"] { display: none; }
+    .mode-opt label {
+      display: block; text-align: center;
+      padding: 10px 12px; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; color: #6b7280; line-height: 1.5;
+      transition: background 0.15s, color 0.15s;
+    }
+    .mode-opt + .mode-opt label { border-left: 1.5px solid #e5e7eb; }
+    .mode-opt input:checked + label { background: #dc2626; color: #fff; }
+    .mode-opt label:hover { background: #fef2f2; }
+    .mode-opt input:checked + label:hover { background: #b91c1c; }
+
+    /* Primer-only: hide Product column */
+    .ltable.primer-only .col-product { display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-text">
+    <h1><span>AB1</span> 파일명 일괄 변환기</h1>
+    <p>ITEM 규칙을 한 번만 설정하면, 이후에는 AB1 파일만 올려도 자동으로 변환됩니다</p>
+  </div>
+  <button class="btn-guide" id="guideBtn" onclick="openGuide()">&#10067; 사용 가이드</button>
+</header>
+
+<!-- ═══════════════ GUIDE PAGE ═══════════════ -->
+<div id="guidePage">
+
+  <div class="gp-hero">
+    <h2>&#128214; AB1 파일명 변환기 <em>사용 가이드</em></h2>
+    <p>처음 사용하시는 분도 이 가이드를 따라 하면 바로 사용할 수 있습니다.<br>한 번 규칙을 설정해두면 이후에는 파일만 올리면 자동으로 변환됩니다.</p>
+    <div class="gp-hero-chips">
+      <span class="gp-chip">&#128197; 처음 설정 10분</span>
+      <span class="gp-chip">&#9889; 매일 사용 1분</span>
+      <span class="gp-chip">&#128190; 설치 불필요</span>
+    </div>
+  </div>
+
+  <nav class="gp-nav">
+    <div class="gp-nav-inner">
+      <button class="gp-nav-btn active" onclick="gpNav(this,'s0')">개요</button>
+      <button class="gp-nav-btn" onclick="gpNav(this,'s1')">파일명 구조</button>
+      <button class="gp-nav-btn" onclick="gpNav(this,'s2')">ITEM 규칙 설정</button>
+      <button class="gp-nav-btn" onclick="gpNav(this,'s3')">매일 사용하기</button>
+      <button class="gp-nav-btn" onclick="gpNav(this,'s4')">Excel 가져오기</button>
+      <button class="gp-nav-btn" onclick="gpNav(this,'s5')">짝꿍 프라이머</button>
+      <button class="gp-nav-btn" onclick="gpNav(this,'s_po')">Primer 단독 모드</button>
+      <button class="gp-nav-btn" onclick="gpNav(this,'s6')">문제해결 FAQ</button>
+    </div>
+  </nav>
+
+  <div class="gp-container">
+
+    <!-- S0: 개요 -->
+    <div class="gp-card" id="s0">
+      <div class="gp-card-hd">
+        <div class="gp-card-num icon">&#128300;</div>
+        <div><div class="gp-card-title">이 도구가 하는 일</div><div class="gp-card-sub">개요 및 사용 목적</div></div>
+      </div>
+      <div class="gp-card-bd">
+        <p>마크로젠 등 외부 시퀀싱 업체에서 돌아온 <strong>.ab1 파일</strong>은 기본적으로 아래와 같은 이름으로 옵니다.</p>
+        <div class="gp-code"><span class="cm">예시: </span>BRCA1_250924_7500443_M1_SP6-R.ab1</div>
+        <p>이 파일명만으로는 <strong>어떤 엑손(Exon)을 시퀀싱한 결과인지 즉시 알기 어렵습니다.</strong><br>
+        이 도구는 Product(M1, M2…)와 Primer(T7-F, SP6-R…) 조합을 보고, 해당되는 엑손 접두어를 자동으로 삽입합니다.</p>
+        <div class="fn-transform">
+          <div class="fn-before">
+            <div class="fn-label-sm">변환 전</div>
+            BRCA1_250924_7500443_<strong>M1</strong>_SP6-R.ab1
+          </div>
+          <div class="fn-arrow">&#8594;</div>
+          <div class="fn-after">
+            <div class="fn-label-sm">변환 후</div>
+            BRCA1_250924_7500443_<span class="fn-inserted">ex1_</span>M1_SP6-R.ab1
+          </div>
+        </div>
+        <div class="gp-2col">
+          <div class="gp-col-card">
+            <div class="gp-col-title">&#128197; 처음 사용 시 (1회)</div>
+            <p style="font-size:0.83rem;color:#6b7280;line-height:1.65;">ITEM(유전자명)별 변환 규칙을 설정합니다.<br>한 번 설정하면 브라우저에 저장되어 재입력 불필요.</p>
+          </div>
+          <div class="gp-col-card">
+            <div class="gp-col-title">&#9889; 매일 사용 시</div>
+            <p style="font-size:0.83rem;color:#6b7280;line-height:1.65;">.ab1 파일을 올리면 자동 변환 후 ZIP으로 다운로드.<br>엑셀 파일 없이 바로 사용 가능.</p>
+          </div>
+        </div>
+        <div class="gp-note"><span class="tip-icon">&#128161;</span><div>이 도구는 파일을 서버로 전송하지 않습니다. 모든 처리가 <strong>브라우저 내에서만</strong> 이루어지므로 내부망에서 안전하게 사용할 수 있습니다.</div></div>
+      </div>
+    </div>
+
+    <!-- S1: 파일명 구조 -->
+    <div class="gp-card" id="s1">
+      <div class="gp-card-hd">
+        <div class="gp-card-num">1</div>
+        <div><div class="gp-card-title">파일명 구조 이해하기</div><div class="gp-card-sub">각 파트가 무엇을 의미하는지 알아봅니다</div></div>
+      </div>
+      <div class="gp-card-bd">
+        <p>AB1 파일명은 <code>_</code>(언더바)로 구분된 여러 파트로 구성됩니다. BRCA1을 예시로 살펴봅니다.</p>
+        <div class="fn-anatomy">
+          <div class="fn-parts">
+            <span class="fn-p fn-p1">BRCA1</span><span class="fn-sep">_</span>
+            <span class="fn-p fn-p2">250924</span><span class="fn-sep">_</span>
+            <span class="fn-p fn-p3">7500443</span><span class="fn-sep">_</span>
+            <span class="fn-p fn-p4">M1</span><span class="fn-sep">_</span>
+            <span class="fn-p fn-p5">SP6-R</span>
+            <span class="fn-ext">.ab1</span>
+          </div>
+          <div class="fn-labels">
+            <span class="fn-lbl"><span class="fn-dot" style="background:#dc2626"></span>① ITEM (유전자명)</span>
+            <span class="fn-lbl"><span class="fn-dot" style="background:#15803d"></span>② 접수 날짜</span>
+            <span class="fn-lbl"><span class="fn-dot" style="background:#1d4ed8"></span>③ 샘플 번호</span>
+            <span class="fn-lbl"><span class="fn-dot" style="background:#a16207"></span>④ Product (앰플리콘)</span>
+            <span class="fn-lbl"><span class="fn-dot" style="background:#7e22ce"></span>⑤ Primer</span>
+          </div>
+        </div>
+        <table class="gp-tbl">
+          <thead><tr><th>파트</th><th>설명</th><th>예시</th></tr></thead>
+          <tbody>
+            <tr><td><strong style="color:#dc2626">① ITEM</strong></td><td>분석하는 유전자 또는 검사 항목명. 파일명의 첫 번째 <code>_</code> 앞 부분.</td><td><code>BRCA1</code>, <code>NOTCH3</code></td></tr>
+            <tr><td><strong style="color:#15803d">② 날짜</strong></td><td>시퀀싱 접수 날짜 (YYMMDD 형식)</td><td><code>250924</code> = 2025년 9월 24일</td></tr>
+            <tr><td><strong style="color:#1d4ed8">③ 샘플번호</strong></td><td>환자 또는 샘플 식별 번호</td><td><code>7500443</code></td></tr>
+            <tr><td><strong style="color:#a16207">④ Product</strong></td><td>PCR 앰플리콘 번호. 어떤 구간을 증폭했는지를 나타냄.</td><td><code>M1</code>, <code>M2</code>, <code>M3</code>…</td></tr>
+            <tr><td><strong style="color:#7e22ce">⑤ Primer</strong></td><td>시퀀싱에 사용한 프라이머명</td><td><code>SP6-R</code>, <code>T7-F</code></td></tr>
+          </tbody>
+        </table>
+        <div class="gp-tip"><span class="tip-icon">&#9888;</span><div><strong>Product 위치</strong>는 ITEM마다 다를 수 있습니다. BRCA1은 4번째 파트가 Product(M1)이지만, 다른 유전자는 위치가 다를 수 있으므로 규칙 설정 시 확인이 필요합니다.</div></div>
+        <p style="margin-top:16px"><strong>변환 결과:</strong> Product와 Primer 조합에 따라 해당되는 엑손 접두어가 Product 앞에 삽입됩니다.</p>
+        <div class="gp-code">
+          <span class="cm">변환 전: </span>BRCA1_250924_7500443_<span class="cb">M1</span>_<span class="cg">SP6-R</span>.ab1<br>
+          <span class="cm">변환 후: </span>BRCA1_250924_7500443_<span class="cr">ex1_</span><span class="cb">M1</span>_<span class="cg">SP6-R</span>.ab1<br>
+          <span class="cm">           ↑ M1 + SP6-R → ex1 (BRCA1 규칙 테이블에서 조회)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- S2: ITEM 규칙 설정 -->
+    <div class="gp-card" id="s2">
+      <div class="gp-card-hd">
+        <div class="gp-card-num">2</div>
+        <div><div class="gp-card-title">ITEM 규칙 설정하기 <span style="font-size:0.78rem;font-weight:600;color:#9ca3af;margin-left:6px">처음 한 번만</span></div><div class="gp-card-sub">유전자별 Product × Primer → Prefix 매핑 테이블을 등록합니다</div></div>
+      </div>
+      <div class="gp-card-bd">
+        <div class="gp-note"><span class="tip-icon">&#128161;</span><div>규칙을 한 번 설정하면 <strong>브라우저에 자동 저장</strong>됩니다. 같은 컴퓨터에서 다시 열어도 규칙이 그대로 남아 있습니다. (브라우저 캐시 삭제 시 초기화)</div></div>
+
+        <p><strong>ITEM 규칙이란?</strong><br>
+        특정 유전자(ITEM)에 대해, 어떤 조합이 어떤 접두어(ex1, ex2…)에 해당하는지를 정의한 표입니다. 유전자 유형에 따라 두 가지 모드 중 하나를 선택합니다.</p>
+
+        <div class="gp-2col">
+          <div class="gp-col-card">
+            <div class="gp-col-title" style="color:#1d4ed8">일반 모드 (기본)</div>
+            <p style="font-size:0.82rem;color:#6b7280;line-height:1.6;margin:0">Product + Primer 조합 → Prefix<br>BRCA1, NOTCH3처럼 <strong>M1, M2… Product가 있는</strong> 유전자에 사용</p>
+          </div>
+          <div class="gp-col-card">
+            <div class="gp-col-title" style="color:#dc2626">Primer 단독 모드</div>
+            <p style="font-size:0.82rem;color:#6b7280;line-height:1.6;margin:0">Primer만 → Prefix<br>LHON처럼 <strong>Product 없이 Primer만 파일명에 있는</strong> 유전자에 사용</p>
+          </div>
+        </div>
+
+        <div class="gp-code">
+          <span class="cm">예: BRCA1 규칙 테이블의 일부</span><br>
+          Product <span class="cm">|</span> Primer  <span class="cm">|</span> Prefix(접두어)<br>
+          ─────────────────────────────<br>
+          <span class="cb">M1</span>      <span class="cm">|</span> <span class="cg">SP6-R</span>  <span class="cm">|</span> <span class="cr">ex1</span><br>
+          <span class="cb">M1</span>      <span class="cm">|</span> <span class="cg">T7-F</span>   <span class="cm">|</span> <span class="cr">ex1</span><br>
+          <span class="cb">M2</span>      <span class="cm">|</span> <span class="cg">SP6-R</span>  <span class="cm">|</span> <span class="cr">ex2</span><br>
+          <span class="cb">M2</span>      <span class="cm">|</span> <span class="cg">T7-F</span>   <span class="cm">|</span> <span class="cr">ex2</span>
+        </div>
+
+        <p style="margin-top:16px"><strong>규칙 추가 방법 (단계별)</strong></p>
+        <div class="gp-steps">
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">1</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">화면 상단 "ITEM 변환 규칙 관리" 패널을 펼칩니다</div>
+              <div class="gp-step-desc">페이지 상단에 접혀 있는 패널을 클릭하면 현재 등록된 규칙 목록이 보입니다. BRCA1은 기본으로 등록되어 있습니다.</div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">2</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">"+ ITEM 규칙 추가" 버튼을 클릭합니다</div>
+              <div class="gp-step-desc">설정 창이 열립니다. 기존 규칙을 수정할 때는 해당 행의 <strong>✏ 수정 버튼</strong>을 클릭하세요.</div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">3</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">ITEM 이름을 입력합니다</div>
+              <div class="gp-step-desc">파일명 첫 번째 <code>_</code> 앞 부분과 <strong>정확히 동일하게</strong> 입력합니다.<br>
+              예: 파일명이 <code>NOTCH3_260507_...</code>이면 → <code>NOTCH3</code> 입력<br>
+              <span style="color:#dc2626;font-weight:600;">대소문자를 구분하지 않으며, 저장 시 자동으로 대문자로 변환됩니다.</span></div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">4</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">Product 위치를 확인합니다</div>
+              <div class="gp-step-desc">파일명을 <code>_</code>로 분리했을 때 Product(M1, M2…)가 <strong>몇 번째</strong>에 있는지 입력합니다.<br>
+              예: <code>NOTCH3(1)_260507(2)_7370170(3)_M1(4)_T7-F(5)</code> → 4번째 → <strong>4 입력</strong><br>
+              창 하단 미리보기에서 위치가 맞는지 확인하세요.</div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">5</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">매핑 테이블에 Product × Primer → Prefix를 입력합니다</div>
+              <div class="gp-step-desc">
+                <strong>방법 A — Excel에서 가져오기:</strong> 기존 접수 파일이 있으면 "↑ Excel에서 가져오기" 버튼으로 자동 입력 가능합니다. (아래 <a href="#s4" onclick="gpNav(document.querySelectorAll('.gp-nav-btn')[4],'s4');return false;" style="color:#dc2626">Excel 가져오기 섹션</a> 참고)<br><br>
+                <strong>방법 B — 직접 입력:</strong> "+ 행 추가" 버튼으로 행을 만들고, Product / Primer / Prefix를 입력합니다.
+              </div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">6</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">"↔ 짝꿍 자동 완성"을 클릭합니다</div>
+              <div class="gp-step-desc">프라이머는 F/R 짝꿍 쌍이 있습니다. T7-F를 입력했다면 SP6-R 행이 자동으로 추가됩니다. 같은 Product · 같은 Prefix가 적용됩니다. (자세한 내용은 <a href="#s5" onclick="gpNav(document.querySelectorAll('.gp-nav-btn')[5],'s5');return false;" style="color:#dc2626">짝꿍 프라이머 섹션</a> 참고)</div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">7</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">"저장" 버튼을 클릭합니다</div>
+              <div class="gp-step-desc">규칙이 브라우저에 저장됩니다. 규칙 관리 표에서 등록된 내용을 확인할 수 있습니다.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S3: 매일 사용하기 -->
+    <div class="gp-card" id="s3">
+      <div class="gp-card-hd">
+        <div class="gp-card-num">3</div>
+        <div><div class="gp-card-title">매일 사용하기 — AB1 파일 변환</div><div class="gp-card-sub">규칙이 설정된 이후의 일상적인 사용 방법</div></div>
+      </div>
+      <div class="gp-card-bd">
+        <div class="gp-steps">
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">1</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">변환할 .ab1 파일을 업로드합니다</div>
+              <div class="gp-step-desc">"AB1 파일 업로드" 영역에 파일을 <strong>드래그</strong>하거나, 영역을 <strong>클릭</strong>하여 파일을 선택합니다.<br>여러 파일을 한 번에 선택할 수 있습니다. (Ctrl+A 전체 선택 가능)</div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">2</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">변환 미리보기를 확인합니다</div>
+              <div class="gp-step-desc">
+                업로드 즉시 아래 표에 변환 결과가 표시됩니다.<br>
+                <span style="color:#15803d;font-weight:700;">✓ 변환됨</span> — 규칙이 적용되어 새 파일명이 생성됨<br>
+                <span style="color:#dc2626;font-weight:700;">✗ 불가</span> — 해당 파일에 맞는 규칙이 없음 (이유 표시됨)
+              </div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">3</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">ZIP 다운로드 버튼을 클릭합니다</div>
+              <div class="gp-step-desc">변환된 파일만 ZIP으로 묶여 저장됩니다.<br>
+              ZIP 파일명은 <strong>첫 번째 파일의 앞 3파트</strong>로 자동 결정됩니다.<br>
+              예: <code>NOTCH3_260507_7370170.zip</code></div>
+            </div>
+          </div>
+        </div>
+        <div class="gp-warn"><span class="tip-icon">&#9888;</span><div><strong>변환 불가 파일이 있는 경우</strong><br>
+        경고 박스에 해당 ITEM 이름이 표시됩니다. "ITEM 변환 규칙 관리"에서 해당 ITEM의 규칙을 추가하거나, 규칙 테이블에 해당 Product+Primer 조합을 추가한 후 파일을 다시 업로드하세요.</div></div>
+      </div>
+    </div>
+
+    <!-- S4: Excel 가져오기 -->
+    <div class="gp-card" id="s4">
+      <div class="gp-card-hd">
+        <div class="gp-card-num">4</div>
+        <div><div class="gp-card-title">Excel에서 규칙 가져오기</div><div class="gp-card-sub">기존 접수 파일에서 매핑 규칙을 자동으로 불러옵니다</div></div>
+      </div>
+      <div class="gp-card-bd">
+        <p>ITEM 규칙 추가/수정 창 안의 <strong>"↑ Excel에서 가져오기"</strong> 버튼을 누르면 Excel 파일을 읽어 Product × Primer → Prefix 조합을 자동으로 채워줍니다.</p>
+
+        <p><strong>가져오기 창 사용 방법</strong></p>
+        <div class="gp-steps">
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">1</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">Excel 파일을 선택합니다</div>
+              <div class="gp-step-desc">파일을 선택하면 <strong>열 매핑 창</strong>이 열리고, 파일의 첫 6행이 미리보기로 표시됩니다.</div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">2</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">각 열이 무엇인지 지정합니다</div>
+              <div class="gp-step-desc">
+                <strong>샘플ID/Product 열:</strong> 파일명 형식의 샘플 ID가 있는 열 (예: NOTCH3_260507_7370170_M1)<br>
+                <strong>Primer 열:</strong> 프라이머명이 있는 열 (예: T7-F)<br>
+                <strong>Prefix 열:</strong> 접두어가 있는 열 (예: ex1) — 없으면 "없음" 선택<br><br>
+                선택한 열은 미리보기 표에서 <strong>색상으로 강조</strong>됩니다.
+              </div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">3</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">하단의 "유효 행: N개"를 확인하고 가져오기를 클릭합니다</div>
+              <div class="gp-step-desc">0개로 표시되면 열 지정이 잘못된 것입니다. 다시 확인 후 가져오기를 진행하세요.</div>
+            </div>
+          </div>
+        </div>
+
+        <table class="gp-tbl" style="margin-top:16px">
+          <thead><tr><th>항목</th><th>설명</th><th>예시</th></tr></thead>
+          <tbody>
+            <tr><td><strong>시작 행</strong></td><td>헤더가 없으면 1행부터, 헤더가 있으면 2행부터</td><td>기본: 1행부터</td></tr>
+            <tr><td><strong>Product 방식</strong></td><td>샘플ID에서 추출 (M1이 포함된 전체 ID) 또는 Product 직접 열 (M1만 있는 열)</td><td>마크로젠 접수 파일 → 샘플ID에서 추출</td></tr>
+            <tr><td><strong>Prefix 없음</strong></td><td>접두어 열이 없어도 가져올 수 있음. Product+Primer만 먼저 등록 후 Prefix는 나중에 직접 입력</td><td>Prefix 열 = 없음 선택</td></tr>
+          </tbody>
+        </table>
+
+        <div class="gp-tip"><span class="tip-icon">&#9888;</span><div>가져오기는 <strong>추가/업데이트</strong>만 합니다. 기존에 입력된 행은 삭제되지 않으며, 동일한 Product+Primer 조합이 있으면 Prefix 값만 업데이트됩니다.</div></div>
+      </div>
+    </div>
+
+    <!-- S5: 짝꿍 프라이머 -->
+    <div class="gp-card" id="s5">
+      <div class="gp-card-hd">
+        <div class="gp-card-num">5</div>
+        <div><div class="gp-card-title">짝꿍 프라이머 자동완성</div><div class="gp-card-sub">F/R 프라이머 쌍을 자동으로 인식하여 규칙을 완성합니다</div></div>
+      </div>
+      <div class="gp-card-bd">
+        <p>생거 시퀀싱은 동일한 앰플리콘을 <strong>Forward(F)</strong>와 <strong>Reverse(R)</strong> 방향으로 모두 읽는 경우가 많습니다. 두 방향 모두 같은 엑손이므로 <strong>같은 Prefix</strong>가 적용됩니다.</p>
+        <p>이 도구는 아래 5쌍을 짝꿍으로 자동 인식합니다.</p>
+        <div class="pair-grid">
+          <div class="pair-card"><div class="pf">M13-F</div><div class="pa">&#8596; 짝꿍</div><div class="pr">M13-R</div></div>
+          <div class="pair-card"><div class="pf">pMAL-F</div><div class="pa">&#8596; 짝꿍</div><div class="pr">pMAL-R</div></div>
+          <div class="pair-card"><div class="pf">pQE-F</div><div class="pa">&#8596; 짝꿍</div><div class="pr">pQE-R</div></div>
+          <div class="pair-card"><div class="pf">T7-F</div><div class="pa">&#8596; 짝꿍</div><div class="pr">SP6-R</div></div>
+          <div class="pair-card"><div class="pf">T3-F</div><div class="pa">&#8596; 짝꿍</div><div class="pr">T7t-R</div></div>
+        </div>
+        <p style="margin-top:16px"><strong>짝꿍 표시 및 사용 방법</strong></p>
+        <table class="gp-tbl">
+          <thead><tr><th>짝꿍 열 표시</th><th>의미</th><th>할 일</th></tr></thead>
+          <tbody>
+            <tr><td><span style="color:#16a34a;font-weight:700">✔짝</span> (초록)</td><td>같은 Product에 짝꿍 행이 이미 있음</td><td>없음 (완료)</td></tr>
+            <tr><td><span style="color:#b7791f;font-weight:700">+ SP6-R</span> (주황 버튼)</td><td>짝꿍 행이 없어 클릭하면 바로 추가됨</td><td>버튼 클릭</td></tr>
+            <tr><td><span style="color:#9ca3af">-</span> (회색)</td><td>이 프라이머는 5쌍에 포함되지 않음</td><td>필요 시 직접 입력</td></tr>
+          </tbody>
+        </table>
+        <div class="gp-note"><span class="tip-icon">&#128161;</span><div><strong>↔ 짝꿍 자동 완성</strong> 버튼을 한 번만 누르면 테이블 전체를 검사해서 빠진 짝꿍을 모두 한 번에 추가합니다. Excel 가져오기 후 바로 이 버튼을 누르는 것을 권장합니다.</div></div>
+      </div>
+    </div>
+
+    <!-- S_PO: Primer 단독 모드 -->
+    <div class="gp-card" id="s_po">
+      <div class="gp-card-hd">
+        <div class="gp-card-num">6</div>
+        <div><div class="gp-card-title">Primer 단독 모드 <span style="font-size:0.78rem;font-weight:600;color:#9ca3af;margin-left:6px">LHON 등 단일 Product 유전자</span></div><div class="gp-card-sub">Product(M1/M2) 없이 Primer만으로 접두어를 결정하는 경우</div></div>
+      </div>
+      <div class="gp-card-bd">
+
+        <p><strong>어떤 경우에 사용하나요?</strong><br>
+        대부분의 유전자(BRCA1, NOTCH3 등)는 여러 개의 Product(M1, M2…)가 있어 파일명에 Product가 포함됩니다. 그런데 <strong>LHON처럼 앰플리콘이 하나뿐인 유전자</strong>는 Product 번호가 없이 Primer 이름만 파일명에 포함됩니다.</p>
+
+        <div class="gp-2col" style="margin-top:16px;">
+          <div class="gp-col-card">
+            <div class="gp-col-title" style="color:#1d4ed8">일반 모드 (Product × Primer)</div>
+            <div class="gp-code" style="font-size:0.75rem;margin:8px 0 0;">
+              BRCA1_250924_7500443_<span style="color:#a16207;font-weight:700">M1</span>_SP6-R.ab1<br>
+              <span style="color:#9ca3af">↓ M1 + SP6-R → ex1 적용</span><br>
+              BRCA1_250924_7500443_<span style="color:#dc2626;font-weight:700">ex1_</span>M1_SP6-R.ab1
+            </div>
+          </div>
+          <div class="gp-col-card">
+            <div class="gp-col-title" style="color:#dc2626">Primer 단독 모드</div>
+            <div class="gp-code" style="font-size:0.75rem;margin:8px 0 0;">
+              LHON_260207_8102811_pMAL-R.ab1<br>
+              <span style="color:#9ca3af">↓ pMAL-R → ND4 적용</span><br>
+              LHON_260207_8102811_<span style="color:#dc2626;font-weight:700">ND4_</span>pMAL-R.ab1
+            </div>
+          </div>
+        </div>
+
+        <p style="margin-top:20px"><strong>두 모드의 차이</strong></p>
+        <table class="gp-tbl">
+          <thead><tr><th>항목</th><th>일반 모드</th><th>Primer 단독 모드</th></tr></thead>
+          <tbody>
+            <tr><td>파일명 구조</td><td><code>ITEM_날짜_번호_<strong>M1</strong>_SP6-R.ab1</code></td><td><code>ITEM_날짜_번호_<strong>pMAL-R</strong>.ab1</code></td></tr>
+            <tr><td>매핑 기준</td><td>Product + Primer 조합</td><td>Primer만</td></tr>
+            <tr><td>삽입 위치(pos)</td><td>Product가 있는 자리</td><td>Primer가 있는 자리</td></tr>
+            <tr><td>접두어 형태</td><td><code>ex1</code>, <code>ex2</code>… (엑손 번호)</td><td><code>ND1</code>, <code>ND4</code>… (유전자 유형)</td></tr>
+            <tr><td>매핑 테이블</td><td>Product 열 + Primer 열</td><td>Primer 열만 (Product 열 숨김)</td></tr>
+          </tbody>
+        </table>
+
+        <p style="margin-top:20px"><strong>LHON 규칙 설정 방법 (단계별)</strong></p>
+        <div class="gp-steps">
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">1</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">"+ ITEM 규칙 추가"를 클릭합니다</div>
+              <div class="gp-step-desc">ITEM 이름에 <code>LHON</code>을 입력합니다.</div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">2</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">매핑 모드에서 <strong>"Primer → Prefix (단독)"</strong>을 선택합니다</div>
+              <div class="gp-step-desc">빨간 버튼으로 강조되면 Primer 단독 모드가 활성화됩니다.<br>매핑 테이블에서 Product 열이 자동으로 숨겨집니다.</div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">3</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">삽입 위치를 확인합니다</div>
+              <div class="gp-step-desc">
+                <code>LHON(1)_날짜(2)_샘플번호(3)_pMAL-R(4)</code>에서 Primer가 <strong>4번째</strong>이므로 → <strong>4 입력</strong><br>
+                창 하단 미리보기에서 <code>LHON_날짜_번호_<span style="color:#dc2626;font-weight:700">ND4_</span>pMAL-R.ab1</code> 형태로 표시되면 정확합니다.
+              </div>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">4</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">Primer → Prefix 매핑을 입력합니다</div>
+              <div class="gp-step-desc">
+                "+ 행 추가"로 행을 만든 뒤 Primer와 Prefix를 입력합니다. Product 열은 보이지 않으며, 입력하지 않아도 됩니다.<br><br>
+                예시:
+              </div>
+              <table class="gp-tbl" style="margin-top:8px;">
+                <thead><tr><th>Primer</th><th>Prefix (접두어)</th></tr></thead>
+                <tbody>
+                  <tr><td><code>pMAL-F</code></td><td><code>ND4</code></td></tr>
+                  <tr><td><code>pMAL-R</code></td><td><code>ND4</code></td></tr>
+                  <tr><td><code>T7-F</code></td><td><code>ND1</code></td></tr>
+                  <tr><td><code>SP6-R</code></td><td><code>ND1</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="gp-step">
+            <div class="gp-step-left"><div class="gp-step-circle">5</div><div class="gp-step-line"></div></div>
+            <div class="gp-step-content">
+              <div class="gp-step-title">"↔ 짝꿍 자동 완성"을 클릭하고 "저장"합니다</div>
+              <div class="gp-step-desc">짝꿍 자동완성도 Primer 단독 모드에서 정상 동작합니다. pMAL-F를 입력했다면 pMAL-R 행이 자동 추가됩니다.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gp-note"><span class="tip-icon">&#128161;</span><div>저장 후 규칙 목록에서 LHON 항목 옆에 <strong>"Primer 단독"</strong> 노란 배지가 표시되어 다른 규칙과 구분됩니다.</div></div>
+
+        <div class="gp-warn"><span class="tip-icon">&#9888;</span><div><strong>모드를 잘못 선택한 경우</strong><br>
+        LHON 파일을 올렸을 때 "매핑 없음 (M1+pMAL-R)" 또는 "파트 수 부족"이 표시되면 규칙 모드가 잘못 설정된 것입니다. 해당 규칙을 수정(✏)하여 모드를 "Primer 단독"으로 변경하세요.</div></div>
+      </div>
+    </div>
+
+    <!-- S6: FAQ -->
+    <div class="gp-card" id="s6">
+      <div class="gp-card-hd">
+        <div class="gp-card-num icon">&#10067;</div>
+        <div><div class="gp-card-title">자주 묻는 질문 / 문제해결</div></div>
+      </div>
+      <div class="gp-card-bd">
+        <div class="faq-item">
+          <div class="faq-q">파일을 올렸는데 "변환 불가"로 표시됩니다.</div>
+          <div class="faq-a">
+            표의 "새 파일명" 칸에 이유가 표시됩니다.<br>
+            <strong>• 규칙 없음:</strong> 해당 ITEM에 대한 규칙이 없습니다. "ITEM 규칙 관리"에서 해당 유전자 규칙을 추가하세요.<br>
+            <strong>• 매핑 없음 (M3+SP6-R):</strong> 규칙 테이블에 해당 Product+Primer 조합이 없습니다. 규칙 수정에서 해당 행을 추가하세요.<br>
+            <strong>• 파트 수 부족:</strong> 파일명에 <code>_</code>로 분리된 파트가 Product 위치보다 적습니다. Product 위치 설정을 확인하세요.
+          </div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">컴퓨터를 바꿨더니 BRCA1 말고 다른 규칙이 사라졌어요.</div>
+          <div class="faq-a">규칙은 <strong>해당 브라우저의 localStorage</strong>에 저장됩니다. 다른 컴퓨터나 다른 브라우저에서는 다시 설정해야 합니다. 규칙이 많은 경우, 설정 후 Excel 파일로 백업해두는 것을 권장합니다.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">Excel 가져오기에서 "유효 행: 0개"가 뜹니다.</div>
+          <div class="faq-a">
+            열 지정이 잘못되었을 가능성이 높습니다.<br>
+            <strong>• 샘플ID 열:</strong> <code>NOTCH3_260507_7370170_M1</code> 형태의 값이 있는 열을 선택했는지 확인<br>
+            <strong>• Primer 열:</strong> <code>T7-F</code>, <code>SP6-R</code> 등의 값이 있는 열을 선택했는지 확인<br>
+            <strong>• 시작 행:</strong> 헤더 없이 데이터가 1행부터 시작하는 경우 "1행부터" 선택
+          </div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">ZIP 파일 안에 파일이 몇 개 없어요.</div>
+          <div class="faq-a">변환 <strong>불가</strong>로 판정된 파일은 ZIP에 포함되지 않습니다. 미리보기 표에서 "✗ 불가" 항목의 이유를 확인하고, 규칙을 보완한 뒤 파일을 다시 업로드하세요.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">BRCA1 규칙을 실수로 삭제했어요.</div>
+          <div class="faq-a">브라우저 캐시나 localStorage를 지우거나, BRCA1 규칙을 삭제하면 복구할 방법이 없습니다. 하지만 이 도구에는 <strong>BRCA1 기본 규칙이 내장</strong>되어 있어, localStorage에 데이터가 전혀 없을 때 자동으로 복원됩니다. localStorage를 초기화하면 기본 규칙으로 돌아옵니다.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">5쌍에 없는 프라이머를 사용할 때는 어떻게 하나요?</div>
+          <div class="faq-a">Primer 드롭다운 맨 아래의 <strong>"직접 입력..."</strong>을 선택하면 텍스트 입력란이 나타납니다. 프라이머 이름을 직접 입력하면 됩니다. 짝꿍 자동완성은 작동하지 않으므로, 짝꿍 행은 별도로 추가해야 합니다.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">LHON처럼 파일명에 Product(M1/M2)가 없는 유전자는 어떻게 규칙을 만드나요?</div>
+          <div class="faq-a">
+            <strong>"Primer 단독 모드"</strong>를 사용합니다.<br>
+            규칙 추가/수정 창에서 <strong>"Primer → Prefix (단독)"</strong> 버튼을 선택하면 Product 열이 숨겨지고, Primer만으로 접두어를 매핑할 수 있게 됩니다.<br><br>
+            예: <code>LHON_260207_8102811_pMAL-R.ab1</code> → <code>LHON_260207_8102811_<strong>ND4_</strong>pMAL-R.ab1</code><br>
+            자세한 내용은 <a href="#s_po" onclick="gpNav(document.querySelectorAll('.gp-nav-btn')[6],'s_po');return false;" style="color:#dc2626">"Primer 단독 모드" 섹션</a>을 참고하세요.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /gp-container -->
+</div><!-- /guidePage -->
+
+<div class="container" id="mainPage">
+
+  <!-- ── ITEM Rules Panel ── -->
+  <div class="panel">
+    <div class="panel-header" onclick="togglePanel()">
+      <div class="panel-title">
+        &#9881; ITEM 변환 규칙 관리
+        <span class="count-badge" id="countBadge">0개</span>
+      </div>
+      <span class="chevron open" id="panelChevron">&#9660;</span>
+    </div>
+    <div class="panel-body" id="panelBody">
+      <div class="tbl-wrap">
+        <table class="rtable">
+          <thead>
+            <tr>
+              <th>ITEM</th>
+              <th>삽입 위치</th>
+              <th>매핑 수</th>
+              <th>변환 예시</th>
+              <th style="width:72px"></th>
+            </tr>
+          </thead>
+          <tbody id="rulesBody"></tbody>
+        </table>
+      </div>
+      <button class="btn-add" onclick="openModal(null)">+ ITEM 규칙 추가</button>
+    </div>
+  </div>
+
+  <!-- ── AB1 Upload ── -->
+  <div class="card">
+    <div class="card-title"><span class="step">1</span> AB1 파일 업로드</div>
+    <div class="dropzone" id="ab1Zone">
+      <div class="dz-icon">&#128300;</div>
+      <div class="dz-hint">변환할 .ab1 파일들을 끌어다 놓거나<br>클릭해서 선택하세요 (여러 개 가능)</div>
+      <div class="dz-info" id="ab1Info" style="display:none"></div>
+    </div>
+    <input type="file" id="ab1Input" accept=".ab1" multiple />
+  </div>
+
+  <!-- ── Notice (before preview) ── -->
+  <div class="notice" id="notice" style="display:none">
+    <div class="ni">&#8505;</div>
+    <div id="noticeText"></div>
+  </div>
+
+  <!-- ── Preview ── -->
+  <div id="previewSection" style="display:none">
+    <div class="card">
+      <div class="card-title"><span class="step">2</span> 변환 미리보기</div>
+      <div class="stats-bar" id="statsBar"></div>
+      <div class="warn-box" id="warnBox" style="display:none"></div>
+      <div class="ptable-wrap">
+        <table class="ptable">
+          <thead>
+            <tr>
+              <th style="width:40px">#</th>
+              <th style="width:80px">ITEM</th>
+              <th>기존 파일명</th>
+              <th>새 파일명</th>
+              <th style="width:90px">상태</th>
+            </tr>
+          </thead>
+          <tbody id="previewBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="action-bar">
+      <div class="action-info" id="actionInfo"></div>
+      <button class="btn-dl" id="dlBtn" disabled onclick="downloadZip()">&#8595;&nbsp; ZIP 다운로드</button>
+    </div>
+  </div>
+
+</div><!-- /mainPage -->
+
+<!-- ── Modal ── -->
+<div class="overlay" id="overlay" onclick="closeModal()"></div>
+<div class="modal" id="modal">
+  <div class="modal-hd">
+    <span id="modalTitle">ITEM 규칙 추가</span>
+    <button class="modal-close" onclick="closeModal()">&#10005;</button>
+  </div>
+  <div class="modal-bd">
+
+    <!-- ITEM 이름 -->
+    <div class="fg">
+      <label>ITEM 이름 <span class="req">*</span></label>
+      <input id="fi_item" type="text" placeholder="예: BRCA1, KRAS, TP53" oninput="refreshPreview()" />
+      <div class="hint">파일명 첫 번째 _ 앞 부분 &nbsp;(예: <code>BRCA1</code>_250924_7500443_M1_SP6-R.ab1)</div>
+      <div class="err" id="e_item">ITEM 이름을 입력하세요.</div>
+      <div class="err" id="e_dup">이미 등록된 ITEM입니다.</div>
+    </div>
+
+    <!-- 매핑 모드 -->
+    <div class="fg">
+      <label>매핑 모드</label>
+      <div class="mode-toggle">
+        <div class="mode-opt">
+          <input type="radio" name="fi_mode" id="mode_pp" value="product_primer" checked
+                 onchange="modeChange('product_primer')" />
+          <label for="mode_pp">Product &times; Primer &#8594; Prefix<br>
+            <span style="font-size:0.72rem;font-weight:400;opacity:0.85">예: M1 + SP6-R → ex1</span></label>
+        </div>
+        <div class="mode-opt">
+          <input type="radio" name="fi_mode" id="mode_po" value="primer_only"
+                 onchange="modeChange('primer_only')" />
+          <label for="mode_po">Primer &#8594; Prefix (단독)<br>
+            <span style="font-size:0.72rem;font-weight:400;opacity:0.85">예: pMAL-R → ND4</span></label>
+        </div>
+      </div>
+      <div class="hint">단일 Product 유전자(예: LHON)는 "Primer 단독" 모드를 선택하세요</div>
+    </div>
+
+    <!-- 삽입 위치 -->
+    <div class="fg">
+      <label id="pos_label">접두어 삽입 위치</label>
+      <div class="insert-row">
+        <span>파일명을 <code>_</code> 로 분리 후</span>
+        <input id="fi_pos" type="number" min="2" max="10" value="4" oninput="refreshPreview()" />
+        <span id="pos_hint">번째 파트가 Product &nbsp;(예: BRCA1=4, 즉 M1 자리)</span>
+      </div>
+      <div class="hint" id="pos_hint2">BRCA1 예: BRCA1(1)_날짜(2)_샘플번호(3)_<strong>M1(4)</strong>_SP6-R → 접두어를 M1 앞에 삽입</div>
+    </div>
+
+    <!-- Product×Primer 테이블 -->
+    <div>
+      <div class="lt-header">
+        <span class="lt-title">Product &times; Primer &#8594; Prefix 매핑 테이블 <span style="font-weight:400;color:#a0aec0">(ITEM별 고정 규칙)</span></span>
+        <div class="lt-actions">
+          <button class="btn-sm btn-import" onclick="document.getElementById('xlImport').click()">
+            &#8593; Excel에서 가져오기
+          </button>
+          <input type="file" id="xlImport" accept=".xlsx,.xls" onchange="importFromExcel(this)" />
+          <button class="btn-sm btn-addrow" onclick="addTableRow()">+ 행 추가</button>
+          <button class="btn-sm" style="background:#fef3c7;color:#b7791f;border:1px solid #f6e05e;" onclick="completeAllPairs()" title="입력된 행의 짝꿍 프라이머가 없으면 자동으로 추가">&#8596; 짝꿍 자동 완성</button>
+        </div>
+      </div>
+      <div class="lt-wrap">
+        <table class="ltable">
+          <thead>
+            <tr>
+              <th class="col-product" style="width:90px">Product</th>
+              <th style="width:110px">Primer</th>
+              <th style="width:100px">Prefix (접두어)</th>
+              <th style="width:80px">짝꿍</th>
+              <th style="width:36px"></th>
+            </tr>
+          </thead>
+          <tbody id="ltBody">
+            <tr id="ltEmpty"><td colspan="4" class="lt-empty">아직 매핑이 없습니다.<br>Excel에서 가져오거나 행 추가로 직접 입력하세요.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="ltMeta" style="font-size:0.74rem;color:#a0aec0;margin-top:6px;"></div>
+    </div>
+
+    <!-- 미리보기 -->
+    <div class="preview-box">
+      <div class="preview-lbl">변환 미리보기</div>
+      <div id="modalPreview"><span style="color:#a0aec0;font-size:0.8rem;">위 항목을 입력하면 예시가 표시됩니다.</span></div>
+    </div>
+
+  </div>
+  <div class="modal-ft">
+    <button class="btn-cancel" onclick="closeModal()">취소</button>
+    <button class="btn-save" onclick="saveRule()">저장</button>
+  </div>
+</div>
+
+<!-- ── Excel Import Wizard ── -->
+<div class="overlay" id="xlOverlay" onclick="closeXlModal()" style="z-index:200"></div>
+<div class="modal" id="xlWiz" style="z-index:201;width:min(760px,96vw)">
+  <div class="modal-hd">
+    <span>Excel 열 매핑</span>
+    <button class="modal-close" onclick="closeXlModal()">&#10005;</button>
+  </div>
+  <div class="modal-bd" id="xlWizBd" style="gap:14px;padding-top:16px"></div>
+  <div class="modal-ft" style="justify-content:space-between;align-items:center">
+    <span id="xlImportCount" style="font-size:0.82rem;color:#4a5568;font-weight:700"></span>
+    <div style="display:flex;gap:10px">
+      <button class="btn-cancel" onclick="closeXlModal()">취소</button>
+      <button class="btn-save" id="xlImportBtn" onclick="runImport()">가져오기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════ Primer Pairs ═══════════════ */
+const PRIMARY_PRIMERS = ['M13-F', 'pMAL-F', 'pQE-F', 'T7-F', 'T3-F'];
+const PRIMER_GROUPS = [
+  ['M13-F',  'M13-R'],
+  ['pMAL-F', 'pMAL-R'],
+  ['pQE-F',  'pQE-R'],
+  ['T7-F',   'SP6-R'],
+  ['T3-F',   'T7t-R'],
+];
+const ALL_KNOWN_PRIMERS = PRIMER_GROUPS.flat();
+const PRIMER_PAIRS = {
+  'M13-F':  'M13-R',  'M13-R':  'M13-F',
+  'pMAL-F': 'pMAL-R', 'pMAL-R': 'pMAL-F',
+  'pQE-F':  'pQE-R',  'pQE-R':  'pQE-F',
+  'T7-F':   'SP6-R',  'SP6-R':  'T7-F',
+  'T3-F':   'T7t-R',  'T7t-R':  'T3-F',
+};
+
+/* ═══════════════ Palette ═══════════════ */
+const PAL = [
+  {bg:'#ebf4ff',fg:'#1a365d'},{bg:'#e6fffa',fg:'#1d4044'},
+  {bg:'#fef3c7',fg:'#7c4a03'},{bg:'#fce7f3',fg:'#702459'},
+  {bg:'#f0fdf4',fg:'#14532d'},{bg:'#fff7ed',fg:'#7c2d12'},
+  {bg:'#f5f3ff',fg:'#3b0764'},{bg:'#ffe4e6',fg:'#881337'},
+];
+function pal(name){let h=0;for(const c of name)h=(h*31+c.charCodeAt(0))&0xff;return PAL[h%PAL.length];}
+
+/* ═══════════════ State ═══════════════ */
+const DEF = [{item:'BRCA1',pos:4,table:[
+  {product:'M1',primer:'M13-F',prefix:'ex8'},
+  {product:'M1',primer:'M13-R',prefix:'ex8'},
+  {product:'M1',primer:'pMAL-F',prefix:'ex11D'},
+  {product:'M1',primer:'pMAL-R',prefix:'ex11D'},
+  {product:'M1',primer:'pQE-F',prefix:'ex15'},
+  {product:'M1',primer:'pQE-R',prefix:'ex15'},
+  {product:'M1',primer:'SP6-R',prefix:'ex1'},
+  {product:'M1',primer:'T3-F',prefix:'ex21'},
+  {product:'M1',primer:'T7t-R',prefix:'ex21'},
+  {product:'M1',primer:'T7-F',prefix:'ex1'},
+  {product:'M2',primer:'M13-F',prefix:'ex9'},
+  {product:'M2',primer:'M13-R',prefix:'ex9'},
+  {product:'M2',primer:'pMAL-F',prefix:'ex11E'},
+  {product:'M2',primer:'pMAL-R',prefix:'ex11E'},
+  {product:'M2',primer:'pQE-F',prefix:'ex16'},
+  {product:'M2',primer:'pQE-R',prefix:'ex16'},
+  {product:'M2',primer:'SP6-R',prefix:'ex2'},
+  {product:'M2',primer:'T7-F',prefix:'ex2'},
+  {product:'M2',primer:'T3-F',prefix:'ex22'},
+  {product:'M2',primer:'T7t-R',prefix:'ex22'},
+  {product:'M3',primer:'M13-F',prefix:'ex10'},
+  {product:'M3',primer:'pMAL-F',prefix:'ex11F'},
+  {product:'M3',primer:'pMAL-R',prefix:'ex11F'},
+  {product:'M3',primer:'pQE-R',prefix:'ex17'},
+  {product:'M3',primer:'pQE-F',prefix:'ex17'},
+  {product:'M3',primer:'SP6-R',prefix:'ex3'},
+  {product:'M3',primer:'T7-F',prefix:'ex3'},
+  {product:'M3',primer:'T3-F',prefix:'ex23'},
+  {product:'M3',primer:'T7t-R',prefix:'ex23'},
+  {product:'M4',primer:'M13-F',prefix:'ex11A'},
+  {product:'M4',primer:'M13-R',prefix:'ex11A'},
+  {product:'M4',primer:'pMAL-F',prefix:'ex12'},
+  {product:'M4',primer:'pMAL-R',prefix:'ex12'},
+  {product:'M4',primer:'pQE-F',prefix:'ex18'},
+  {product:'M4',primer:'pQE-R',prefix:'ex18'},
+  {product:'M4',primer:'T3-F',prefix:'ex24'},
+  {product:'M4',primer:'T7t-R',prefix:'ex24'},
+  {product:'M4',primer:'SP6-R',prefix:'ex5'},
+  {product:'M4',primer:'T7-F',prefix:'ex5'},
+  {product:'M5',primer:'M13-F',prefix:'ex11B'},
+  {product:'M5',primer:'M13-R',prefix:'ex11B'},
+  {product:'M5',primer:'pMAL-F',prefix:'ex13'},
+  {product:'M5',primer:'pMAL-R',prefix:'ex13'},
+  {product:'M5',primer:'pQE-F',prefix:'ex19'},
+  {product:'M5',primer:'T7-F',prefix:'ex6'},
+  {product:'M5',primer:'SP6-R',prefix:'ex6'},
+  {product:'M6',primer:'M13-F',prefix:'ex11C'},
+  {product:'M6',primer:'M13-R',prefix:'ex11C'},
+  {product:'M6',primer:'pMAL-F',prefix:'ex14'},
+  {product:'M6',primer:'pMAL-R',prefix:'ex14'},
+  {product:'M6',primer:'pQE-F',prefix:'ex20'},
+  {product:'M6',primer:'pQE-R',prefix:'ex20'},
+  {product:'M6',primer:'T7-F',prefix:'ex7'},
+]}];
+
+let rules    = loadRules();
+let ab1Files = [];    // File[]
+let results  = [];    // {oldName, newName, item, found}
+let editIdx  = null;
+let ltRows   = [];    // current modal table rows [{product,primer,prefix}]
+
+function loadRules(){
+  try{const r=localStorage.getItem('ab1r3');return r?JSON.parse(r):JSON.parse(JSON.stringify(DEF));}
+  catch{return JSON.parse(JSON.stringify(DEF));}
+}
+function persist(){localStorage.setItem('ab1r3',JSON.stringify(rules));}
+
+/* ═══════════════ Panel toggle ═══════════════ */
+function togglePanel(){
+  document.getElementById('panelBody').classList.toggle('hidden');
+  document.getElementById('panelChevron').classList.toggle('open');
+}
+
+/* ═══════════════ Render rules table ═══════════════ */
+function renderRules(){
+  document.getElementById('countBadge').textContent = rules.length+'개 ITEM 설정됨';
+  const tbody = document.getElementById('rulesBody');
+  tbody.innerHTML = '';
+  if(!rules.length){
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#a0aec0;padding:20px;">등록된 규칙이 없습니다.</td></tr>';
+    return;
+  }
+  rules.forEach((r,i)=>{
+    const p   = pal(r.item);
+    const ex  = buildEx(r);
+    const modeTag=r.mode==='primer_only'
+      ? ' <span style="font-size:0.7rem;background:#fef3c7;color:#b7791f;border-radius:4px;padding:1px 5px;margin-left:3px;">Primer 단독</span>'
+      : '';
+    const tr  = document.createElement('tr');
+    tr.innerHTML=`
+      <td><span class="item-tag" style="background:${p.bg};color:${p.fg}">${esc(r.item)}</span>${modeTag}</td>
+      <td><span class="col-tag">${r.pos}번째</span></td>
+      <td><span class="col-tag">${r.table.length}개</span></td>
+      <td><div class="rule-ex">${ex}</div></td>
+      <td>
+        <button class="btn-icon btn-edit"   onclick="openModal(${i})">&#9998;</button>
+        <button class="btn-icon btn-delete" onclick="delRule(${i})">&#10005;</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function buildEx(r){
+  const n=r.pos, item=r.item;
+  const mode=r.mode||'product_primer';
+  if(mode==='primer_only'){
+    const parts=[item];
+    for(let i=2;i<n;i++) parts.push('P'+i);
+    const before=parts.join('_');
+    return (before?before+'_':'')+'<span class="hl">[접두어]</span>_프라이머.ab1';
+  }
+  const parts=[item];
+  for(let i=2;i<=Math.max(n+1,3);i++) parts.push('P'+i);
+  const before=parts.slice(0,n-1).join('_');
+  const after =parts.slice(n-1).join('_');
+  return (before?before+'_':'')+'<span class="hl">[접두어]</span>_'+after+'_프라이머.ab1';
+}
+
+/* ═══════════════ Modal open/close ═══════════════ */
+function openModal(idx){
+  editIdx=idx;
+  ['e_item','e_dup'].forEach(id=>document.getElementById(id).classList.remove('show'));
+
+  const r = idx!==null ? rules[idx] : {item:'',pos:4,mode:'product_primer',table:[]};
+  document.getElementById('modalTitle').textContent = idx===null ? 'ITEM 규칙 추가' : 'ITEM 규칙 수정';
+  document.getElementById('fi_item').value = r.item;
+  document.getElementById('fi_item').readOnly = idx!==null;
+  document.getElementById('fi_item').style.background = idx!==null ? '#f7fafc' : '';
+  document.getElementById('fi_pos').value  = r.pos;
+
+  const mode=r.mode||'product_primer';
+  const modeRadio=document.querySelector(`input[name="fi_mode"][value="${mode}"]`);
+  if(modeRadio){ modeRadio.checked=true; }
+  modeChange(mode);
+
+  ltRows = r.table.map(x=>({...x}));
+  renderLtBody();
+  refreshPreview();
+
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('modal').classList.add('show');
+  if(idx===null) setTimeout(()=>document.getElementById('fi_item').focus(),80);
+}
+
+function closeModal(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('modal').classList.remove('show');
+}
+
+/* ═══════════════ Lookup table body (in modal) ═══════════════ */
+function renderLtBody(){
+  const mode=document.querySelector('input[name="fi_mode"]:checked')?.value||'product_primer';
+  const isPrimerOnly=mode==='primer_only';
+  const ltable=document.querySelector('.ltable');
+  if(ltable) ltable.classList.toggle('primer-only',isPrimerOnly);
+
+  const tbody=document.getElementById('ltBody');
+  document.getElementById('ltMeta').textContent = ltRows.length ? `${ltRows.length}개 매핑` : '';
+
+  if(!ltRows.length){
+    tbody.innerHTML='<tr id="ltEmpty"><td colspan="5" class="lt-empty">아직 매핑이 없습니다.<br>Excel에서 가져오거나 행 추가로 직접 입력하세요.</td></tr>';
+    return;
+  }
+  tbody.innerHTML='';
+  ltRows.forEach((row,i)=>{
+    const pairPrimer=PRIMER_PAIRS[row.primer];
+    let pairCell;
+    if(!pairPrimer){
+      pairCell=`<span style="color:#a0aec0;font-size:0.78rem;">-</span>`;
+    } else {
+      const hasPair=isPrimerOnly
+        ? ltRows.some(r=>r.primer===pairPrimer)
+        : ltRows.some(r=>r.product===row.product&&r.primer===pairPrimer);
+      pairCell=hasPair
+        ? `<span class="pair-ok">&#10004;짝</span>`
+        : `<button class="btn-pair" onclick="addPairRow(${i})">+ ${esc(pairPrimer)}</button>`;
+    }
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td class="col-product"><input value="${esc(row.product)}" placeholder="예: M1" oninput="ltRows[${i}].product=this.value" /></td>
+      <td>${buildPrimerCell(row.primer, i)}</td>
+      <td><input value="${esc(row.prefix)}" placeholder="${isPrimerOnly?'예: ND4':'예: ex1'}" oninput="ltRows[${i}].prefix=this.value" /></td>
+      <td>${pairCell}</td>
+      <td><button class="btn-icon btn-delete" onclick="ltRows.splice(${i},1);renderLtBody()">&#10005;</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function buildPrimerCell(primer, i){
+  const isKnown  = ALL_KNOWN_PRIMERS.includes(primer);
+  const isCustom = !isKnown && primer !== '';
+  const groupOpts = PRIMER_GROUPS.map(([f,r])=>
+    `<optgroup label="${f} ↔ ${r}">` +
+    `<option value="${f}" ${f===primer?'selected':''}>${f}</option>` +
+    `<option value="${r}" ${r===primer?'selected':''}>${r}</option>` +
+    `</optgroup>`
+  ).join('');
+  const opts =
+    `<option value="" disabled ${primer===''?'selected':''} style="color:#a0aec0">-- 선택 --</option>` +
+    groupOpts +
+    `<option value="__custom__" ${isCustom?'selected':''}>직접 입력...</option>`;
+  const customInput = isCustom
+    ? `<input type="text" value="${esc(primer)}" placeholder="프라이머 입력"
+         oninput="ltRows[${i}].primer=this.value" onblur="renderLtBody()" />`
+    : '';
+  return `<div class="primer-cell"><select onchange="ltPrimerSelect(${i},this.value)">${opts}</select>${customInput}</div>`;
+}
+
+function ltPrimerSelect(idx, val){
+  if(val === '__custom__'){
+    if(ALL_KNOWN_PRIMERS.includes(ltRows[idx].primer)) ltRows[idx].primer = '';
+  } else {
+    ltRows[idx].primer = val;
+  }
+  renderLtBody();
+}
+
+function addTableRow(){
+  ltRows.push({product:'',primer:'',prefix:''});
+  renderLtBody();
+  const inputs=document.getElementById('ltBody').querySelectorAll('input');
+  if(inputs.length) inputs[inputs.length-3].focus();
+}
+
+function addPairRow(idx){
+  const row=ltRows[idx];
+  const pairPrimer=PRIMER_PAIRS[row.primer];
+  if(!pairPrimer) return;
+  ltRows.splice(idx+1,0,{product:row.product,primer:pairPrimer,prefix:row.prefix});
+  renderLtBody();
+}
+
+function completeAllPairs(){
+  const mode=document.querySelector('input[name="fi_mode"]:checked')?.value||'product_primer';
+  const isPrimerOnly=mode==='primer_only';
+  const missing=[];
+  const seen=new Set();
+  ltRows.forEach((row,i)=>{
+    const pairPrimer=PRIMER_PAIRS[row.primer];
+    if(!pairPrimer) return;
+    const hasPair=isPrimerOnly
+      ? ltRows.some(r=>r.primer===pairPrimer)
+      : ltRows.some(r=>r.product===row.product&&r.primer===pairPrimer);
+    if(hasPair) return;
+    const key=isPrimerOnly?('|'+pairPrimer):(row.product+'|'+pairPrimer);
+    if(seen.has(key)) return;
+    seen.add(key);
+    missing.push({afterIdx:i,newRow:{product:row.product,primer:pairPrimer,prefix:row.prefix}});
+  });
+  if(!missing.length){alert('모든 짝꿍이 이미 있습니다.');return;}
+  // insert from back to front so indices stay valid
+  for(let j=missing.length-1;j>=0;j--){
+    const {afterIdx,newRow}=missing[j];
+    ltRows.splice(afterIdx+1,0,newRow);
+  }
+  renderLtBody();
+  document.getElementById('ltMeta').textContent=`${missing.length}개 짝꿍 추가됨 (총 ${ltRows.length}개)`;
+}
+
+/* ═══════════════ Mode change ═══════════════ */
+function modeChange(mode){
+  const isPrimerOnly=mode==='primer_only';
+  const ltable=document.querySelector('.ltable');
+  if(ltable) ltable.classList.toggle('primer-only',isPrimerOnly);
+  const posHint=document.getElementById('pos_hint');
+  if(posHint) posHint.textContent=isPrimerOnly
+    ? '번째 파트가 Primer  (예: LHON=4, 즉 pMAL-R 자리)'
+    : '번째 파트가 Product  (예: BRCA1=4, 즉 M1 자리)';
+  const posHint2=document.getElementById('pos_hint2');
+  if(posHint2) posHint2.innerHTML=isPrimerOnly
+    ? 'LHON 예: LHON(1)_날짜(2)_샘플번호(3)_<strong>pMAL-R(4)</strong> → 접두어를 pMAL-R 앞에 삽입'
+    : 'BRCA1 예: BRCA1(1)_날짜(2)_샘플번호(3)_<strong>M1(4)</strong>_SP6-R → 접두어를 M1 앞에 삽입';
+  const ltTitle=document.querySelector('.lt-title');
+  if(ltTitle) ltTitle.innerHTML=isPrimerOnly
+    ? 'Primer &#8594; Prefix 매핑 테이블 <span style="font-weight:400;color:#a0aec0">(ITEM별 고정 규칙)</span>'
+    : 'Product &times; Primer &#8594; Prefix 매핑 테이블 <span style="font-weight:400;color:#a0aec0">(ITEM별 고정 규칙)</span>';
+  renderLtBody();
+  refreshPreview();
+}
+
+/* ═══════════════ Excel Import Wizard ═══════════════ */
+let xlRawRows = [];
+
+function importFromExcel(inputEl){
+  const file=inputEl.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      xlRawRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      openXlWizard(file.name);
+    }catch(e){ alert('Excel 읽기 오류: '+e.message); }
+    inputEl.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function xlColLetter(i){
+  let s='',n=i+1;
+  while(n>0){s=String.fromCharCode(64+((n-1)%26+1))+s;n=Math.floor((n-1)/26);}
+  return s+'열';
+}
+
+function openXlWizard(filename){
+  const maxCols=Math.min(Math.max(...xlRawRows.slice(0,10).map(r=>r.length),0),20);
+  const defaultPos=parseInt(document.getElementById('fi_pos').value)||4;
+
+  // Auto-detect: find primer column by matching known primer values
+  const knownPrimers=new Set(Object.keys(PRIMER_PAIRS));
+  let autoPrimerCol=3, autoPrefixCol=-1, autoIdCol=0;
+  for(let ri=1;ri<Math.min(xlRawRows.length,6);ri++){
+    const row=xlRawRows[ri];
+    for(let ci=0;ci<maxCols;ci++){
+      const v=String(row[ci]??'').trim();
+      if(knownPrimers.has(v)&&autoPrimerCol===3) autoPrimerCol=ci;
+      if(/^ex\d/i.test(v)&&autoPrefixCol===-1) autoPrefixCol=ci;
+    }
+  }
+
+  function colOpts(sel,withNone=false){
+    let h=withNone?`<option value="-1" ${sel===-1?'selected':''}>없음</option>`:'';
+    for(let i=0;i<maxCols;i++) h+=`<option value="${i}" ${i===sel?'selected':''}>${xlColLetter(i)}</option>`;
+    return h;
+  }
+
+  // Preview table (first 6 rows, max 10 cols shown)
+  const showCols=Math.min(maxCols,10);
+  const previewRows=xlRawRows.slice(0,Math.min(6,xlRawRows.length));
+  const thHtml=Array.from({length:showCols},(_,i)=>`<th data-ci="${i}" style="padding:5px 10px;white-space:nowrap;font-size:0.72rem;font-weight:700;color:#718096;background:#f7fafc;border-bottom:2px solid #e2e8f0;">${xlColLetter(i)}</th>`).join('');
+  const tbHtml=previewRows.map((row,ri)=>{
+    const tds=Array.from({length:showCols},(_,ci)=>`<td id="xpc_${ri}_${ci}" style="padding:4px 10px;border-bottom:1px solid #f0f4f8;font-size:0.73rem;font-family:Consolas,monospace;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis;">${esc(String(row[ci]??''))}</td>`).join('');
+    return `<tr><td style="padding:4px 8px;color:#a0aec0;font-size:0.72rem;border-bottom:1px solid #f0f4f8;">${ri+1}</td>${tds}</tr>`;
+  }).join('');
+
+  document.getElementById('xlWizBd').innerHTML=`
+    <div style="font-size:0.8rem;color:#718096;margin-bottom:12px;">&#128196; ${esc(filename)}</div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:0.82rem;font-weight:700;color:#4a5568;margin-bottom:6px;">미리보기 (처음 ${previewRows.length}행${maxCols>10?' · 앞 10열만 표시':''})</div>
+      <div style="overflow-x:auto;border-radius:8px;border:1px solid #e2e8f0;max-height:200px;overflow-y:auto;">
+        <table id="xlPrevTbl" style="border-collapse:collapse;width:max-content;min-width:100%;">
+          <thead><tr><th style="padding:5px 8px;background:#f7fafc;color:#a0aec0;font-size:0.72rem;border-bottom:2px solid #e2e8f0;">#</th>${thHtml}</tr></thead>
+          <tbody>${tbHtml}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="font-size:0.82rem;font-weight:700;color:#4a5568;margin-bottom:10px;">열 지정</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+
+      <div class="fg">
+        <label>시작 행</label>
+        <select id="xl_skip" onchange="updateXlCount()">
+          <option value="0" selected>1행부터 (헤더 없음)</option>
+          <option value="1">2행부터 (1행=헤더 제외)</option>
+        </select>
+        <div class="hint">헤더 행이 있으면 2행부터 선택</div>
+      </div>
+
+      <div class="fg">
+        <label>Product 인식 방식</label>
+        <select id="xl_mode" onchange="xlModeChange(this.value);updateXlCount()">
+          <option value="sampleid">샘플ID 열에서 추출 (예: NOTCH3_날짜_번호_<strong>M1</strong>)</option>
+          <option value="direct">Product 직접 열 (M1, M2 … 값만 있는 열)</option>
+        </select>
+      </div>
+
+      <div class="fg">
+        <label id="xl_idLbl">샘플ID 열 <span class="req">*</span></label>
+        <select id="xl_idCol" onchange="updateXlCount()">${colOpts(autoIdCol)}</select>
+      </div>
+
+      <div class="fg" id="xl_posRow">
+        <label>Product 위치 (N번째 파트)</label>
+        <input type="number" id="xl_pos" value="${defaultPos}" min="1" max="10"
+          oninput="updateXlCount()"
+          style="padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.85rem;outline:none;width:100%;" />
+        <div class="hint">_ 로 분리 시 Product가 몇 번째인지 (기본 ${defaultPos})</div>
+      </div>
+
+      <div class="fg">
+        <label>Primer 열 <span class="req">*</span></label>
+        <select id="xl_primerCol" onchange="updateXlCount()">${colOpts(autoPrimerCol)}</select>
+      </div>
+
+      <div class="fg">
+        <label>Prefix(접두어) 열</label>
+        <select id="xl_prefixCol" onchange="updateXlCount()">${colOpts(autoPrefixCol,true)}</select>
+        <div class="hint">없으면 "없음" 선택 → 나중에 직접 입력 가능</div>
+      </div>
+    </div>`;
+
+  document.getElementById('xlOverlay').classList.add('show');
+  document.getElementById('xlWiz').classList.add('show');
+  updateXlCount();
+}
+
+function xlModeChange(mode){
+  const isDirect=mode==='direct';
+  document.getElementById('xl_posRow').style.display=isDirect?'none':'';
+  document.getElementById('xl_idLbl').textContent=(isDirect?'Product 열':'샘플ID 열')+' *';
+}
+
+function updateXlCount(){
+  const skip      =parseInt(document.getElementById('xl_skip')?.value??1);
+  const mode      =document.getElementById('xl_mode')?.value??'sampleid';
+  const idCol     =parseInt(document.getElementById('xl_idCol')?.value??0);
+  const pos       =parseInt(document.getElementById('xl_pos')?.value??4);
+  const primerCol =parseInt(document.getElementById('xl_primerCol')?.value??3);
+  const prefixCol =parseInt(document.getElementById('xl_prefixCol')?.value??-1);
+
+  // Highlight selected columns in preview
+  const HI={id:'#dbeafe',primer:'#dcfce7',prefix:'#fef9c3'};
+  const colColors={[idCol]:HI.id,[primerCol]:HI.primer};
+  if(prefixCol>=0) colColors[prefixCol]=HI.prefix;
+  for(let ri=0;ri<6;ri++){
+    for(let ci=0;ci<10;ci++){
+      const td=document.getElementById(`xpc_${ri}_${ci}`);
+      if(!td) continue;
+      td.style.background=colColors[ci]||'';
+      td.style.fontWeight=colColors[ci]?'700':'';
+    }
+  }
+
+  // Count valid rows
+  const seen=new Set();
+  for(let ri=skip;ri<xlRawRows.length;ri++){
+    const row=xlRawRows[ri];
+    let product;
+    if(mode==='sampleid'){
+      const parts=String(row[idCol]??'').trim().split('_');
+      product=parts[pos-1]||'';
+    } else {
+      product=String(row[idCol]??'').trim();
+    }
+    const primer=String(row[primerCol]??'').trim();
+    if(!product||!primer) continue;
+    if(prefixCol>=0&&!String(row[prefixCol]??'').trim()) continue;
+    seen.add(product+'|'+primer);
+  }
+  const count=seen.size;
+  const el=document.getElementById('xlImportCount');
+  if(el) el.textContent=count?`유효 행: ${count}개`:'유효한 행 없음';
+  const btn=document.getElementById('xlImportBtn');
+  if(btn) btn.disabled=count===0;
+}
+
+function closeXlModal(){
+  document.getElementById('xlOverlay').classList.remove('show');
+  document.getElementById('xlWiz').classList.remove('show');
+}
+
+function runImport(){
+  const skip      =parseInt(document.getElementById('xl_skip').value??1);
+  const mode      =document.getElementById('xl_mode').value??'sampleid';
+  const idCol     =parseInt(document.getElementById('xl_idCol').value??0);
+  const pos       =parseInt(document.getElementById('xl_pos').value??4);
+  const primerCol =parseInt(document.getElementById('xl_primerCol').value??3);
+  const prefixCol =parseInt(document.getElementById('xl_prefixCol').value??-1);
+
+  const seen=new Set();
+  let added=0;
+  for(let ri=skip;ri<xlRawRows.length;ri++){
+    const row=xlRawRows[ri];
+    let product;
+    if(mode==='sampleid'){
+      const parts=String(row[idCol]??'').trim().split('_');
+      product=parts[pos-1]||'';
+    } else {
+      product=String(row[idCol]??'').trim();
+    }
+    const primer=String(row[primerCol]??'').trim();
+    const prefix=prefixCol>=0?String(row[prefixCol]??'').trim().replace(/_+$/,''):'';
+    if(!product||!primer) continue;
+    if(prefixCol>=0&&!prefix) continue;
+    const key=product+'|'+primer;
+    if(seen.has(key)) continue;
+    seen.add(key);
+    const existing=ltRows.find(r=>r.product===product&&r.primer===primer);
+    if(existing){ existing.prefix=prefix; }
+    else{ ltRows.push({product,primer,prefix}); added++; }
+  }
+  renderLtBody();
+  document.getElementById('ltMeta').textContent=`Excel에서 ${added}개 추가됨 (총 ${ltRows.length}개)`;
+  closeXlModal();
+}
+
+/* ═══════════════ Modal preview ═══════════════ */
+function refreshPreview(){
+  const item=document.getElementById('fi_item').value.trim()||'ITEM';
+  const pos =parseInt(document.getElementById('fi_pos').value)||4;
+  const mode=document.querySelector('input[name="fi_mode"]:checked')?.value||'product_primer';
+
+  if(mode==='primer_only'){
+    const parts=[item.toUpperCase()];
+    for(let i=2;i<pos;i++) parts.push('파트'+i);
+    const oldName=[...parts,'프라이머'].join('_')+'.ab1';
+    const before=parts.join('_');
+    const newName=(before?before+'_':'')+'<span class="hl">접두어</span>_프라이머.ab1';
+    document.getElementById('modalPreview').innerHTML=`
+      <div class="preview-row"><span class="pl">기존</span><code>${esc(oldName)}</code></div>
+      <div class="preview-row"><span class="pl">새로</span><code>${newName}</code></div>`;
+    return;
+  }
+
+  const parts=[item.toUpperCase()];
+  for(let i=2;i<=Math.max(pos+1,3);i++) parts.push('파트'+i);
+
+  const oldName=[...parts,'프라이머'].join('_')+'.ab1';
+  const before=parts.slice(0,pos-1).join('_');
+  const after =parts.slice(pos-1).join('_');
+  const newName=(before?before+'_':'')+'<span class="hl">접두어</span>_'+after+'_프라이머.ab1';
+
+  document.getElementById('modalPreview').innerHTML=`
+    <div class="preview-row"><span class="pl">기존</span><code>${esc(oldName)}</code></div>
+    <div class="preview-row"><span class="pl">새로</span><code>${newName}</code></div>`;
+}
+
+/* ═══════════════ Save / Delete rule ═══════════════ */
+function saveRule(){
+  const item=document.getElementById('fi_item').value.trim().toUpperCase();
+  const pos =parseInt(document.getElementById('fi_pos').value)||4;
+  let ok=true;
+  ['e_item','e_dup'].forEach(id=>document.getElementById(id).classList.remove('show'));
+
+  if(!item){document.getElementById('e_item').classList.add('show');ok=false;}
+  if(editIdx===null && rules.some(r=>r.item===item)){document.getElementById('e_dup').classList.add('show');ok=false;}
+  if(!ok) return;
+
+  const mode=document.querySelector('input[name="fi_mode"]:checked')?.value||'product_primer';
+  const isPrimerOnly=mode==='primer_only';
+  const table=isPrimerOnly
+    ? ltRows.filter(r=>r.primer&&r.prefix)
+    : ltRows.filter(r=>r.product&&r.primer&&r.prefix);
+  if(editIdx!==null){ rules[editIdx]={item,pos,mode,table}; }
+  else{ rules.push({item,pos,mode,table}); }
+  persist();
+  renderRules();
+  closeModal();
+  if(ab1Files.length) processFiles();
+}
+
+function delRule(i){
+  if(!confirm(`"${rules[i].item}" 규칙을 삭제하시겠습니까?`)) return;
+  rules.splice(i,1);
+  persist();
+  renderRules();
+  if(ab1Files.length) processFiles();
+}
+
+/* ═══════════════ Dropzone ═══════════════ */
+(function(){
+  const zone=document.getElementById('ab1Zone');
+  const inp =document.getElementById('ab1Input');
+  zone.addEventListener('click',()=>inp.click());
+  zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('over');});
+  zone.addEventListener('dragleave',()=>zone.classList.remove('over'));
+  zone.addEventListener('drop',e=>{
+    e.preventDefault(); zone.classList.remove('over');
+    const dt=new DataTransfer();
+    for(const f of e.dataTransfer.files) dt.items.add(f);
+    inp.files=dt.files; inp.dispatchEvent(new Event('change'));
+  });
+  inp.addEventListener('change',e=>{
+    ab1Files=Array.from(e.target.files);
+    if(!ab1Files.length) return;
+    zone.classList.add('loaded');
+    document.getElementById('ab1Info').style.display='block';
+    document.getElementById('ab1Info').textContent=`✓  ${ab1Files.length}개 파일 선택됨`;
+    processFiles();
+  });
+})();
+
+/* ═══════════════ Core: rename logic ═══════════════ */
+function lookupPrefix(rule, product, primer){
+  const e=rule.table.find(r=>r.product===product&&r.primer===primer);
+  return e?e.prefix:null;
+}
+
+function renameOne(filename){
+  const base =filename.replace(/\.ab1$/i,'');
+  const parts=base.split('_');
+  const item =parts[0].toUpperCase();
+
+  const rule=rules.find(r=>r.item===item);
+  if(!rule) return {oldName:filename,newName:null,item,reason:'규칙 없음'};
+
+  if((rule.mode||'product_primer')==='primer_only'){
+    const primerIdx=rule.pos-1;
+    if(parts.length<=primerIdx)
+      return {oldName:filename,newName:null,item,reason:'파트 수 부족'};
+    const primer=parts.slice(primerIdx).join('_');
+    const entry=rule.table.find(r=>r.primer===primer);
+    if(!entry)
+      return {oldName:filename,newName:null,item,reason:`매핑 없음 (${primer})`};
+    const before=parts.slice(0,primerIdx).join('_');
+    const newName=(before?before+'_':'')+entry.prefix+'_'+primer+'.ab1';
+    return {oldName:filename,newName,item,reason:null};
+  }
+
+  const productIdx=rule.pos-1;
+  if(parts.length<=productIdx)
+    return {oldName:filename,newName:null,item,reason:'파트 수 부족'};
+
+  const product=parts[productIdx];
+  const primer =parts.slice(productIdx+1).join('_');
+  const prefix =lookupPrefix(rule,product,primer);
+
+  if(!prefix)
+    return {oldName:filename,newName:null,item,reason:`매핑 없음 (${product}+${primer})`};
+
+  const before=parts.slice(0,productIdx).join('_');
+  const newName=(before?before+'_':'')+prefix+'_'+product+'_'+primer+'.ab1';
+  return {oldName:filename,newName,item,reason:null};
+}
+
+/* ═══════════════ Process & Render preview ═══════════════ */
+function processFiles(){
+  if(!ab1Files.length) return;
+
+  results=ab1Files.map(f=>renameOne(f.name));
+
+  const ok  =results.filter(r=>r.newName);
+  const fail=results.filter(r=>!r.newName);
+
+  // Notice
+  const notice=document.getElementById('notice');
+  if(fail.length && !ok.length){
+    notice.style.display='flex';
+    const reasons=[...new Set(fail.map(r=>r.reason))].join(', ');
+    document.getElementById('noticeText').innerHTML=
+      `<strong>변환할 수 없는 파일이 있습니다.</strong><br><small>${esc(reasons)}</small>`;
+  } else {
+    notice.style.display='none';
+  }
+
+  // Stats
+  document.getElementById('statsBar').innerHTML=
+    `<span class="chip chip-total">전체 ${results.length}개</span>`+
+    (ok.length?`<span class="chip chip-found">&#10003; 변환 가능 ${ok.length}개</span>`:'')+
+    (fail.length?`<span class="chip chip-missing">&#10007; 변환 불가 ${fail.length}개</span>`:'');
+
+  // Warn: no rule items
+  const noRuleItems=[...new Set(fail.filter(r=>r.reason==='규칙 없음').map(r=>r.item))];
+  const warnBox=document.getElementById('warnBox');
+  if(noRuleItems.length){
+    warnBox.style.display='block';
+    warnBox.innerHTML=`&#9888; 규칙이 없는 ITEM: <strong>${noRuleItems.map(esc).join(', ')}</strong><br>`+
+      `<small>위 "ITEM 규칙 관리"에서 해당 ITEM 규칙을 추가하세요.</small>`;
+  } else {
+    warnBox.style.display='none';
+  }
+
+  // Table
+  const tbody=document.getElementById('previewBody');
+  tbody.innerHTML='';
+  results.forEach((r,i)=>{
+    const p=pal(r.item);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td style="color:#a0aec0">${i+1}</td>
+      <td><span class="item-tag" style="background:${p.bg};color:${p.fg}">${esc(r.item)}</span></td>
+      <td class="mono">${esc(r.oldName)}</td>
+      <td class="mono">${r.newName?esc(r.newName):`<span style="color:#a0aec0">${esc(r.reason)}</span>`}</td>
+      <td><span class="badge ${r.newName?'badge-ok':'badge-norule'}">${r.newName?'&#10003; 변환됨':'&#10007; 불가'}</span></td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Action bar
+  document.getElementById('actionInfo').innerHTML= ok.length
+    ? `<strong>${ok.length}개</strong>를 새 이름으로 ZIP 다운로드합니다.`+
+      (fail.length?`&nbsp;<span style="color:#a0aec0">(불가 ${fail.length}개 제외)</span>`:'')
+    : '변환 가능한 파일이 없습니다.';
+
+  document.getElementById('dlBtn').disabled=!ok.length;
+  document.getElementById('previewSection').style.display='block';
+}
+
+/* ═══════════════ ZIP download ═══════════════ */
+async function downloadZip(){
+  const btn=document.getElementById('dlBtn');
+  btn.disabled=true; btn.textContent='생성 중...';
+  try{
+    const zip=new JSZip();
+    const fileMap=new Map(ab1Files.map(f=>[f.name,f]));
+    for(const r of results){
+      if(!r.newName) continue;
+      const f=fileMap.get(r.oldName);
+      if(f) zip.file(r.newName, await f.arrayBuffer());
+    }
+    const blob=await zip.generateAsync({type:'blob',compression:'STORE'});
+    const firstName=results[0]?.oldName||'renamed_ab1';
+    const zipBase=firstName.replace(/\.ab1$/i,'').split('_').slice(0,3).join('_');
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=`${zipBase}.zip`;
+    a.click(); URL.revokeObjectURL(a.href);
+  }catch(e){alert('ZIP 오류: '+e.message);}
+  finally{btn.disabled=false;btn.innerHTML='&#8595;&nbsp; ZIP 다운로드';}
+}
+
+/* ═══════════════ Helpers ═══════════════ */
+function pad(n){return String(n).padStart(2,'0');}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+/* ═══════════════ Guide ═══════════════ */
+function openGuide(){
+  document.getElementById('mainPage').style.display='none';
+  document.getElementById('guidePage').style.display='block';
+  const btn=document.getElementById('guideBtn');
+  btn.innerHTML='&#8592; 변환기로 돌아가기';
+  btn.onclick=closeGuide;
+  window.scrollTo(0,0);
+}
+function closeGuide(){
+  document.getElementById('guidePage').style.display='none';
+  document.getElementById('mainPage').style.display='block';
+  const btn=document.getElementById('guideBtn');
+  btn.innerHTML='&#10067; 사용 가이드';
+  btn.onclick=openGuide;
+  window.scrollTo(0,0);
+}
+function gpNav(el, targetId){
+  document.querySelectorAll('.gp-nav-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  const t=document.getElementById(targetId);
+  if(t) t.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* ═══════════════ Init ═══════════════ */
+renderRules();
+</script>
+</body>
+</html>
